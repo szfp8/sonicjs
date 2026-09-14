@@ -1,0 +1,26 @@
+name = "szfp8-tax-seo"
+main = "my-sonicjs-app/src/index.ts"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "szfp8-tax-seo-db"
+migrations_dir = "my-sonicjs-app/migrations"
+
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "szfp8-tax-seo-media"
+
+[vars]
+ENVIRONMENT = "production"
+SITE_NAME = "全国财税发票服务"
+SITE_URL = "https://szfp8.com"
+CONTACT_PHONE = ""
+
+[triggers]
+crons = ["0 */6 * * *"]
+
+[observability]
+enabled = true
