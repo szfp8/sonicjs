@@ -35,7 +35,7 @@ try {
 
   const workerName = (await ask('Worker name', 'szfp8-tax-seo')).replace(/[^a-zA-Z0-9-]/g, '-');
   const domainInput = await ask('Custom domain(s), comma separated', 'szfp8.com');
-  const domains = domainInput.split(',').map((v) => v.trim().toLowerCase().replace(/^https?:\\/\\//, '').replace(/\\/$/, '')).filter(Boolean);
+  const domains = domainInput.split(',').map((v) => v.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')).filter(Boolean);
   if (!domains.length) throw new Error('At least one domain is required.');
 
   const d1Name = await ask('Existing D1 database name');
