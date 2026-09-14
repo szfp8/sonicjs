@@ -1,0 +1,28 @@
+import type { CollectionConfig } from '@sonicjs-cms/core';
+
+export default {
+  name: 'seo_city_page',
+  displayName: 'SEO城市页面',
+  slug: 'seo-city-pages',
+  description: '管理城市落地页的标题、描述和正文。',
+  icon: '📍',
+  schema: {
+    type: 'object',
+    properties: {
+      city: { type: 'string', title: '城市', required: true, maxLength: 80 },
+      province: { type: 'string', title: '省份/地区', maxLength: 80 },
+      title: { type: 'string', title: 'SEO标题', required: true, maxLength: 200 },
+      metaDescription: { type: 'string', title: 'Meta Description', maxLength: 300 },
+      keywords: { type: 'string', title: '关键词', maxLength: 500 },
+      content: { type: 'lexical', title: '页面正文', required: true },
+    },
+    required: ['city', 'title', 'content'],
+  },
+  listFields: ['city', 'province', 'title', 'status'],
+  searchFields: ['city', 'province', 'title', 'keywords', 'content'],
+  defaultSort: 'createdAt',
+  defaultSortOrder: 'desc',
+  managed: true,
+  isActive: true,
+  access: { public: ['read'] },
+} satisfies CollectionConfig;

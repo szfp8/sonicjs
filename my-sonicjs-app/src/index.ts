@@ -1,9 +1,9 @@
 /**
- * My SonicJS Application — v3 greenfield
+ * SonicJS production SEO application.
  *
- * Exports both `fetch` (HTTP) and `scheduled` (cron) so the Worker handles both
- * cold-start paths. app.boot() ensures a cron-first cold isolate still gets the
- * hook bus wired before dispatching.
+ * The SonicJS admin/API remains the backend. The SEO layer adds a public
+ * website, 314 city landing pages, sitemap/robots, lead capture, and optional
+ * IndexNow notifications without hard-coded admin credentials.
  */
 
 import type { SonicJSConfig } from '@sonicjs-cms/core';
@@ -11,62 +11,55 @@ import {
   collectCronSchedules,
   createScheduledHandler,
   createSonicJSApp,
-  demoLoginPlugin,
-  emailReconciliationPlugin,
   getHookSystem,
   graphqlPlugin,
   mcpPlugin,
   redirectPlugin,
   registerCollections,
+  siteSettingsCollection,
   versioningPlugin,
 } from '@sonicjs-cms/core';
-import { examplePlugin } from './plugins/example';
-import { moodsCollection } from './plugins/example/collections/moods.collection';
-
-// User profile model — uncomment defineUserProfile() in this file to add custom fields
 import './user-profile.model';
 
-// Import code-defined collections
-import { siteSettingsCollection } from '@sonicjs-cms/core';
 import blogPostsCollection from './collections/blog-posts.collection';
-import e2eTestCollection from './collections/e2e-test.collection';
-import { departmentsCollection } from './collections/departments.collection';
-import { regionsCollection } from './collections/regions.collection';
-import { employeesCollection } from './collections/employees.collection';
-import { faqCollection } from './collections/faq.collection';
+import seoArticlesCollection from './collections/seo-articles.collection';
+import seoCityPagesCollection from './collections/seo-city-pages.collection';
+import { handleSeoRequest, pingIndexNow } from './seo/public';
 
-// Register collections so they appear in admin UI
-// departments + regions must be registered before employees (reference targets)
-registerCollections([siteSettingsCollection, blogPostsCollection, e2eTestCollection, moodsCollection, departmentsCollection, regionsCollection, employeesCollection, faqCollection]);
+registerCollections([
+  siteSettingsCollection,
+  blogPostsCollection,
+  seoArticlesCollection,
+  seoCityPagesCollection,
+]);
 
 const config: SonicJSConfig = {
   plugins: {
-    // Add plugins to this array to activate them. Each plugin's register()
-    // runs synchronously at startup; onBoot() runs async on first request.
-    register: [redirectPlugin, examplePlugin, mcpPlugin(), graphqlPlugin(), demoLoginPlugin, versioningPlugin],
+    register: [redirectPlugin, mcpPlugin(), graphqlPlugin(), versioningPlugin],
     disableAll: false,
   },
 };
 
-// Create the core application (includes boot() for cron cold-start wiring)
 const app = createSonicJSApp(config);
+const allCronPlugins = [...(config.plugins?.register ?? [])];
+const coreScheduled = createScheduledHandler({
+  plugins: allCronPlugins,
+  getHooks: getHookSystem,
+  boot: app.boot,
+});
 
-// All plugins that declare crons, for the scheduled handler.
-// Core crons (emailReconciliationPlugin) are wired automatically by createSonicJSApp.
-const allCronPlugins = [emailReconciliationPlugin, ...(config.plugins?.register ?? [])];
-
-// Log declared schedules at startup so wrangler.toml can be kept in sync.
 const schedules = collectCronSchedules(allCronPlugins);
-if (schedules.length > 0) {
-  console.log('[cron] Declared schedules:', schedules.join(', '));
-}
+if (schedules.length > 0) console.log('[cron] Declared schedules:', schedules.join(', '));
 
 export default {
-  fetch: app.fetch,
-  scheduled: createScheduledHandler({
-    plugins: allCronPlugins,
-    getHooks: getHookSystem,
-    boot: app.boot,
-  }),
-};
+  async fetch(request: Request, env: Record<string, unknown>, ctx: ExecutionContext) {
+    const seoResponse = await handleSeoRequest(request, env as never);
+    return seoResponse || app.fetch(request, env, ctx);
+  },
 
+  async scheduled(controller: ScheduledController, env: Record<string, unknown>, ctx: ExecutionContext) {
+    await coreScheduled(controller, env, ctx);
+    const siteUrl = String(env.SITE_URL || 'https://example.com');
+    await pingIndexNow(new Request(siteUrl), env as never);
+  },
+};

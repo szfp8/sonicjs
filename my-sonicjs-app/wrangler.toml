@@ -1,46 +1,27 @@
-name = "my-sonicjs-app"
+# Safe local/default configuration. Production deployment uses scripts/cloudflare/setup.mjs
+# to generate wrangler.production.toml with the user's own D1 ID and domain.
+name = "szfp8-tax-seo"
 main = "src/index.ts"
-compatibility_date = "2025-05-05"
+compatibility_date = "2026-09-01"
 compatibility_flags = ["nodejs_compat"]
-
-# Cloudflare account
-account_id = "f9d6328dc3115e621758a741dda3d5c4"
-
-# Cloudflare Workers settings
 workers_dev = true
 
-# D1 Database
-# Note: database_name and database_id are automatically updated by GitHub Actions
 [[d1_databases]]
 binding = "DB"
-database_name = "sonicjs-worktree-lane711-graphql-integration-plan"
-database_id = "86a764d1-a166-4243-b8e0-c4a729e06610"
+database_name = "REPLACE_WITH_YOUR_D1_DATABASE_NAME"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
 migrations_dir = "./migrations"
 
-# R2 Bucket for media storage (using CI bucket)
-[[r2_buckets]]
-binding = "MEDIA_BUCKET"
-bucket_name = "sonicjs-ci-media"
-
-# KV Cache (using CI namespace)
-[[kv_namespaces]]
-binding = "CACHE_KV"
-id = "a16f8246fc294d809c90b0fb2df6d363"
-
-# Cloudflare Email Service binding (send_email)
-# remote = true requires valid Cloudflare auth; omit for local dev
-[[send_email]]
-name = "EMAIL"
-
-# Environment variables
 [vars]
-ENVIRONMENT = "development"
-CORS_ORIGINS = "http://127.0.0.1:8787,http://127.0.0.1:4321"
-DEFAULT_FROM_EMAIL = "lane@sonicjs.com"
-# CI preview secret — not sensitive (fresh DB per PR, no real user data).
-# Production deployments must use `wrangler secret put BETTER_AUTH_SECRET` instead.
-BETTER_AUTH_SECRET = "sonicjs-ci-preview-secret-32chars"
+ENVIRONMENT = "production"
+SITE_NAME = "全国财税发票服务"
+SITE_URL = "https://example.com"
+CONTACT_PHONE = ""
+# Set INDEXNOW_KEY as a Wrangler secret for production; do not commit it here.
 
-# Observability
+[triggers]
+# UTC: four times per day. Used only for optional IndexNow notifications and maintenance.
+crons = ["0 */6 * * *"]
+
 [observability]
 enabled = true
