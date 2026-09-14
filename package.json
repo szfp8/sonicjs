@@ -3,11 +3,7 @@
   "version": "3.0.0-beta.28",
   "private": true,
   "type": "module",
-  "workspaces": [
-    "packages/*",
-    "www",
-    "my-sonicjs-app"
-  ],
+  "workspaces": ["packages/*", "www", "my-sonicjs-app"],
   "scripts": {
     "predev": "test -d node_modules/@sonicjs-cms || npm install",
     "dev": "npm run dev --workspace=my-sonicjs-app",
@@ -38,7 +34,7 @@
     "version:patch": "npm version patch --workspace=@sonicjs-cms/core --no-git-tag-version && node scripts/sync-versions.js",
     "version:minor": "npm version minor --workspace=@sonicjs-cms/core --no-git-tag-version && node scripts/sync-versions.js",
     "version:major": "npm version major --workspace=@sonicjs-cms/core --no-git-tag-version && node scripts/sync-versions.js",
-    "publish:core": "npm run build:core && npm publish --workspace=create-sonicjs",
+    "publish:core": "npm run build:core && npm publish --workspace=@sonicjs-cms/core",
     "publish:create-app": "npm publish --workspace=create-sonicjs",
     "publish:all": "npm run publish:core && npm run publish:create-app",
     "release:patch": "npm run version:patch && npm run publish:all && npm run release:announce",
@@ -72,9 +68,7 @@
     "semver": "^7.7.3",
     "zod": "^4.1.12"
   },
-  "optionalDependencies": {
-    "better-sqlite3": "12.11.1"
-  },
+  "optionalDependencies": {"better-sqlite3": "12.11.1"},
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260724.1",
     "@playwright/test": "^1.53.1",
@@ -89,9 +83,5 @@
     "vitest": "^4.1.9",
     "wrangler": "^4.65.0"
   },
-  "lint-staged": {
-    "*.{ts,tsx}": [
-      "tsc --noEmit"
-    ]
-  }
+  "lint-staged": {"*.{ts,tsx}": ["tsc --noEmit"]}
 }
