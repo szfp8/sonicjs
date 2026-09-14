@@ -1,5 +1,6 @@
-# Safe local/default configuration. Production deployment uses scripts/cloudflare/setup.mjs
-# to generate wrangler.production.toml with the user's own D1 ID and domain.
+# Cloudflare Deploy to Cloudflare template configuration.
+# D1 and R2 are intentionally declared without account-specific IDs/namespaces.
+# Cloudflare provisions and binds them during one-click deployment.
 name = "szfp8-tax-seo"
 main = "src/index.ts"
 compatibility_date = "2026-09-01"
@@ -8,19 +9,22 @@ workers_dev = true
 
 [[d1_databases]]
 binding = "DB"
-database_name = "REPLACE_WITH_YOUR_D1_DATABASE_NAME"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_name = "szfp8-tax-seo-db"
 migrations_dir = "./migrations"
+
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "szfp8-tax-seo-media"
 
 [vars]
 ENVIRONMENT = "production"
 SITE_NAME = "全国财税发票服务"
-SITE_URL = "https://example.com"
+SITE_URL = "https://szfp8.com"
 CONTACT_PHONE = ""
-# Set INDEXNOW_KEY as a Wrangler secret for production; do not commit it here.
+# INDEXNOW_KEY is optional. Do not commit secrets here.
 
 [triggers]
-# UTC: four times per day. Used only for optional IndexNow notifications and maintenance.
+# UTC: four times per day. IndexNow notifications are sent only when INDEXNOW_KEY is configured.
 crons = ["0 */6 * * *"]
 
 [observability]
