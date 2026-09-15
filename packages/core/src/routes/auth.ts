@@ -749,6 +749,32 @@ authRoutes.post('/login/form',
       `)
     }
 
+    // Synchronize browser form login with the application's JWT fallback.
+    const browserUser = await c.env.DB.prepare(
+      'SELECT id, email, role, is_active FROM auth_user WHERE lower(email) = ? LIMIT 1'
+    ).bind(email).first() as { id: string; email: string; role?: string; is_active?: number } | null
+
+    if (!browserUser || browserUser.is_active === 0) {
+      return c.html(html`<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">This account is inactive or could not be found.</div>`)
+    }
+
+    const browserTokenTtl = await getJwtExpirySecondsFromDb(c.env.DB, c.env)
+    const browserToken = await AuthManager.generateToken(
+      browserUser.id,
+      browserUser.email,
+      browserUser.role ?? 'viewer',
+      c.env.JWT_SECRET,
+      browserTokenTtl
+    )
+
+    setCookie(c, 'auth_token', browserToken, {
+      httpOnly: true,
+      secure: new URL(c.req.url).protocol === 'https:',
+      sameSite: 'Strict',
+      path: '/',
+      maxAge: browserTokenTtl,
+    })
+
     if (email === DEMO_EMAIL) {
       c.executionCtx?.waitUntil(trackDemoLogin(c.env.CACHE_KV))
     }

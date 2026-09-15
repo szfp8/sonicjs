@@ -255,7 +255,20 @@ export function createSonicJSApp(config: SonicJSConfig = {}): SonicJSApp {
         try {
           const secret = (c.env as any)?.JWT_SECRET
           const payload = await AuthManager.verifyToken(token, secret)
-          if (payload) c.set('user', { userId: payload.userId, email: payload.email, role: payload.role, exp: payload.exp, iat: payload.iat })
+          if (payload) {
+            const currentUser = await c.env.DB.prepare(
+              'SELECT id, email, role, is_active FROM auth_user WHERE id = ? LIMIT 1'
+            ).bind(payload.userId).first() as { id: string; email: string; role?: string; is_active?: number } | null
+            if (currentUser && currentUser.is_active !== 0) {
+              c.set('user', {
+                userId: String(currentUser.id),
+                email: String(currentUser.email ?? payload.email),
+                role: String(currentUser.role ?? payload.role ?? 'viewer'),
+                exp: payload.exp,
+                iat: payload.iat,
+              })
+            }
+          }
         } catch { /* invalid token — leave user unset */ }
       }
     }
