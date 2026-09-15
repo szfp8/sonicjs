@@ -46,20 +46,19 @@ const script = `
     if (document.getElementById('tax-seo-beginner-style')) return;
     var style = document.createElement('style');
     style.id = 'tax-seo-beginner-style';
-    style.textContent = `
-      [data-tax-seo-shell] { margin: 0 0 18px 0; }
-      .tax-seo-brand { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:14px; background:linear-gradient(135deg,#0b3b82,#155eef); color:#fff; box-shadow:0 8px 24px rgba(15,45,90,.12); }
-      .tax-seo-brand-icon { width:38px; height:38px; display:flex; align-items:center; justify-content:center; border-radius:10px; background:rgba(255,255,255,.16); font-size:21px; }
-      .tax-seo-brand-title { font-size:17px; font-weight:700; line-height:1.2; }
-      .tax-seo-brand-sub { margin-top:2px; font-size:12px; opacity:.82; }
-      .tax-seo-quick { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-top:12px; }
-      .tax-seo-quick a { display:block; padding:13px 14px; border:1px solid #e5e7eb; border-radius:12px; background:#fff; color:#172033; text-decoration:none; box-shadow:0 2px 10px rgba(15,23,42,.04); }
-      .tax-seo-quick a:hover { border-color:#b7c9ee; transform:translateY(-1px); }
-      .tax-seo-quick strong { display:block; font-size:14px; }
-      .tax-seo-quick span { display:block; margin-top:4px; color:#667085; font-size:12px; }
-      .tax-seo-side-title { padding:10px 10px 6px; font-size:11px; font-weight:700; color:#98a2b3; letter-spacing:.06em; }
-      @media (max-width: 700px) { .tax-seo-quick { grid-template-columns:1fr; } }
-    `;
+    style.textContent =
+      '[data-tax-seo-shell] { margin: 0 0 18px 0; }' +
+      '.tax-seo-brand { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:14px; background:linear-gradient(135deg,#0b3b82,#155eef); color:#fff; box-shadow:0 8px 24px rgba(15,45,90,.12); }' +
+      '.tax-seo-brand-icon { width:38px; height:38px; display:flex; align-items:center; justify-content:center; border-radius:10px; background:rgba(255,255,255,.16); font-size:21px; }' +
+      '.tax-seo-brand-title { font-size:17px; font-weight:700; line-height:1.2; }' +
+      '.tax-seo-brand-sub { margin-top:2px; font-size:12px; opacity:.82; }' +
+      '.tax-seo-quick { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-top:12px; }' +
+      '.tax-seo-quick a { display:block; padding:13px 14px; border:1px solid #e5e7eb; border-radius:12px; background:#fff; color:#172033; text-decoration:none; box-shadow:0 2px 10px rgba(15,23,42,.04); }' +
+      '.tax-seo-quick a:hover { border-color:#b7c9ee; transform:translateY(-1px); }' +
+      '.tax-seo-quick strong { display:block; font-size:14px; }' +
+      '.tax-seo-quick span { display:block; margin-top:4px; color:#667085; font-size:12px; }' +
+      '.tax-seo-side-title { padding:10px 10px 6px; font-size:11px; font-weight:700; color:#98a2b3; letter-spacing:.06em; }' +
+      '@media (max-width: 700px) { .tax-seo-quick { grid-template-columns:1fr; } }';
     document.head.appendChild(style);
   }
 
