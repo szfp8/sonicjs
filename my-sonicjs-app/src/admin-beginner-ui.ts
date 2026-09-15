@@ -39,7 +39,7 @@ const script = `
 
   function setText(oldText, newText) {
     var el = findText(oldText);
-    if (el) el.textContent = newText;
+    if (el && cleanText(el.textContent) !== cleanText(newText)) el.textContent = newText;
   }
 
   function addStyles() {
@@ -126,9 +126,22 @@ const script = `
     setText('Per page', '每页数量');
   }
 
-  buildPageShell();
-  var observer = new MutationObserver(function () { buildPageShell(); });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  /*
+   * Do not use a MutationObserver here. The previous observer watched the
+   * entire document while this function itself changed text nodes, which
+   * caused an endless mutation -> rebuild -> mutation loop in the browser.
+   * Run once after the page is ready and once shortly after hydration instead.
+   */
+  function run() {
+    buildPageShell();
+    window.setTimeout(buildPageShell, 300);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run, { once: true });
+  } else {
+    run();
+  }
 })();
 </script>`;
 
