@@ -20,6 +20,7 @@ import {
   versioningPlugin,
 } from '@sonicjs-cms/core';
 import type { D1Database } from '@cloudflare/workers-types';
+import { RbacService } from '@sonicjs-cms/core/services/rbac';
 import './user-profile.model';
 
 import blogPostsCollection from './collections/blog-posts.collection';
@@ -58,8 +59,9 @@ if (schedules.length > 0) console.log('[cron] Declared schedules:', schedules.jo
  * only a database containing exactly one user is eligible, so a later install
  * with multiple users can never silently promote an arbitrary account.
  *
- * The legacy role + super-admin flag are both set. The normal RBAC bootstrap
- * can subsequently project the account into the document-backed role system.
+ * Both authorization sources are repaired:
+ *   1. legacy auth_user.role / is_super_admin compatibility fields
+ *   2. document-backed rbac_user_roles assignment used by current admin guards
  */
 async function ensureBootstrapAdmin(db: D1Database): Promise<void> {
   try {
@@ -72,14 +74,23 @@ async function ensureBootstrapAdmin(db: D1Database): Promise<void> {
     const user = await db
       .prepare('SELECT id, role, is_super_admin FROM auth_user ORDER BY created_at ASC LIMIT 1')
       .first<{ id: string; role: string; is_super_admin: number }>();
-    if (!user || (user.role === 'admin' && Number(user.is_super_admin) === 1)) return;
+    if (!user) return;
 
-    await db
-      .prepare("UPDATE auth_user SET role = 'admin', is_super_admin = 1, updated_at = ? WHERE id = ?")
-      .bind(Date.now(), user.id)
-      .run();
+    // Current SonicJS authorization is document-backed RBAC. Make sure the
+    // system roles exist and explicitly assign Administrator to the first user.
+    const rbac = new RbacService(db);
+    await rbac.ensureSystemRbacSeed();
+    await rbac.addUserRoleByName(user.id, 'admin');
 
-    console.log('[Bootstrap] Promoted the first registered user to administrator.');
+    // Keep legacy compatibility fields in sync as well. Do this after the RBAC
+    // assignment because setUserRoles is the source of truth for authorization.
+    if (user.role !== 'admin' || Number(user.is_super_admin) !== 1) {
+      await db
+        .prepare("UPDATE auth_user SET role = 'admin', is_super_admin = 1, updated_at = ? WHERE id = ?")
+        .bind(Date.now(), user.id)
+        .run();
+      console.log('[Bootstrap] Promoted the first registered user to administrator.');
+    }
   } catch (error) {
     // Never block public traffic because this repair is unavailable.
     console.warn('[Bootstrap] First-user admin repair skipped:', error);
