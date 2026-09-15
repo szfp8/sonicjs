@@ -19,6 +19,7 @@ import {
   siteSettingsCollection,
   versioningPlugin,
 } from '@sonicjs-cms/core';
+import type { D1Database } from '@cloudflare/workers-types';
 import './user-profile.model';
 
 import blogPostsCollection from './collections/blog-posts.collection';
@@ -51,8 +52,45 @@ const coreScheduled = createScheduledHandler({
 const schedules = collectCronSchedules(allCronPlugins);
 if (schedules.length > 0) console.log('[cron] Declared schedules:', schedules.join(', '));
 
+/**
+ * Repair the bootstrap account when registration completed but its RBAC
+ * post-registration hook could not finish. This is intentionally conservative:
+ * only a database containing exactly one user is eligible, so a later install
+ * with multiple users can never silently promote an arbitrary account.
+ *
+ * The legacy role + super-admin flag are both set. The normal RBAC bootstrap
+ * can subsequently project the account into the document-backed role system.
+ */
+async function ensureBootstrapAdmin(db: D1Database): Promise<void> {
+  try {
+    const countRow = await db
+      .prepare('SELECT COUNT(*) AS count FROM auth_user')
+      .first<{ count: number | string }>();
+    const userCount = Number(countRow?.count ?? 0);
+    if (userCount !== 1) return;
+
+    const user = await db
+      .prepare('SELECT id, role, is_super_admin FROM auth_user ORDER BY created_at ASC LIMIT 1')
+      .first<{ id: string; role: string; is_super_admin: number }>();
+    if (!user || (user.role === 'admin' && Number(user.is_super_admin) === 1)) return;
+
+    await db
+      .prepare("UPDATE auth_user SET role = 'admin', is_super_admin = 1, updated_at = ? WHERE id = ?")
+      .bind(Date.now(), user.id)
+      .run();
+
+    console.log('[Bootstrap] Promoted the first registered user to administrator.');
+  } catch (error) {
+    // Never block public traffic because this repair is unavailable.
+    console.warn('[Bootstrap] First-user admin repair skipped:', error);
+  }
+}
+
 export default {
   async fetch(request: Request, env: Record<string, unknown>, ctx: ExecutionContext) {
+    const db = (env as { DB?: D1Database }).DB;
+    if (db) await ensureBootstrapAdmin(db);
+
     const seoResponse = await handleSeoRequest(request, env as never);
     return seoResponse || app.fetch(request, env, ctx);
   },
