@@ -26,49 +26,45 @@ jobs:
           auth = Path('packages/core/src/routes/auth.ts')
           text = auth.read_text(encoding='utf-8')
 
-          # The HTML form login must also mint the JWT fallback cookie. The
-          # Better Auth session cookie is forwarded separately, but /admin has
-          # a JWT fallback and the old form handler did not set auth_token.
           marker = "    if (email === DEMO_EMAIL) {"
           if "const browserUser = await c.env.DB.prepare" not in text:
-              insert = """
-    // Synchronize the browser form login with the application's JWT fallback.
-    const browserUser = await c.env.DB.prepare(
-      'SELECT id, email, role, is_active FROM auth_user WHERE lower(email) = ? LIMIT 1'
-    ).bind(email).first() as { id: string; email: string; role?: string; is_active?: number } | null
-
-    if (!browserUser || browserUser.is_active === 0) {
-      return c.html(html`
-        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          This account is inactive or could not be found.
-        </div>
-      `)
-    }
-
-    const browserTokenTtl = await getJwtExpirySecondsFromDb(c.env.DB, c.env)
-    const browserToken = await AuthManager.generateToken(
-      browserUser.id,
-      browserUser.email,
-      browserUser.role ?? 'viewer',
-      c.env.JWT_SECRET,
-      browserTokenTtl
-    )
-
-    setCookie(c, 'auth_token', browserToken, {
-      httpOnly: true,
-      secure: new URL(c.req.url).protocol === 'https:',
-      sameSite: 'Strict',
-      path: '/',
-      maxAge: browserTokenTtl,
-    })
-
-"""
+              insert_lines = [
+                  "    // Synchronize the browser form login with the application's JWT fallback.",
+                  "    const browserUser = await c.env.DB.prepare(",
+                  "      'SELECT id, email, role, is_active FROM auth_user WHERE lower(email) = ? LIMIT 1'",
+                  "    ).bind(email).first() as { id: string; email: string; role?: string; is_active?: number } | null",
+                  "",
+                  "    if (!browserUser || browserUser.is_active === 0) {",
+                  "      return c.html(html`",
+                  "        <div class=\"bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded\">",
+                  "          This account is inactive or could not be found.",
+                  "        </div>",
+                  "      `)",
+                  "    }",
+                  "",
+                  "    const browserTokenTtl = await getJwtExpirySecondsFromDb(c.env.DB, c.env)",
+                  "    const browserToken = await AuthManager.generateToken(",
+                  "      browserUser.id,",
+                  "      browserUser.email,",
+                  "      browserUser.role ?? 'viewer',",
+                  "      c.env.JWT_SECRET,",
+                  "      browserTokenTtl",
+                  "    )",
+                  "",
+                  "    setCookie(c, 'auth_token', browserToken, {",
+                  "      httpOnly: true,",
+                  "      secure: new URL(c.req.url).protocol === 'https:',",
+                  "      sameSite: 'Strict',",
+                  "      path: '/',",
+                  "      maxAge: browserTokenTtl,",
+                  "    })",
+                  "",
+              ]
+              insert = "\n".join(insert_lines) + "\n"
               if marker not in text:
                   raise SystemExit('Could not locate form-login insertion point')
               text = text.replace(marker, insert + marker, 1)
 
-          # Ensure auth_token cookies are site-wide. Do this specifically for
-          # the existing cookie blocks rather than using a broad regex.
           lines = text.splitlines()
           out = []
           i = 0
@@ -76,9 +72,8 @@ jobs:
               line = lines[i]
               out.append(line)
               if "setCookie(c, 'auth_token'," in line:
-                  block = []
                   j = i + 1
-                  depth = 0
+                  block = []
                   while j < len(lines):
                       block.append(lines[j])
                       if lines[j].strip() == '})':
