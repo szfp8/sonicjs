@@ -18,105 +18,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Repair browser authentication
-        shell: python
-        run: |
-          from pathlib import Path
-
-          auth = Path('packages/core/src/routes/auth.ts')
-          text = auth.read_text(encoding='utf-8')
-
-          marker = "    if (email === DEMO_EMAIL) {"
-          if "const browserUser = await c.env.DB.prepare" not in text:
-              insert_lines = [
-                  "    // Synchronize the browser form login with the application's JWT fallback.",
-                  "    const browserUser = await c.env.DB.prepare(",
-                  "      'SELECT id, email, role, is_active FROM auth_user WHERE lower(email) = ? LIMIT 1'",
-                  "    ).bind(email).first() as { id: string; email: string; role?: string; is_active?: number } | null",
-                  "",
-                  "    if (!browserUser || browserUser.is_active === 0) {",
-                  "      return c.html(html`",
-                  "        <div class=\"bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded\">",
-                  "          This account is inactive or could not be found.",
-                  "        </div>",
-                  "      `)",
-                  "    }",
-                  "",
-                  "    const browserTokenTtl = await getJwtExpirySecondsFromDb(c.env.DB, c.env)",
-                  "    const browserToken = await AuthManager.generateToken(",
-                  "      browserUser.id,",
-                  "      browserUser.email,",
-                  "      browserUser.role ?? 'viewer',",
-                  "      c.env.JWT_SECRET,",
-                  "      browserTokenTtl",
-                  "    )",
-                  "",
-                  "    setCookie(c, 'auth_token', browserToken, {",
-                  "      httpOnly: true,",
-                  "      secure: new URL(c.req.url).protocol === 'https:',",
-                  "      sameSite: 'Strict',",
-                  "      path: '/',",
-                  "      maxAge: browserTokenTtl,",
-                  "    })",
-                  "",
-              ]
-              insert = "\n".join(insert_lines) + "\n"
-              if marker not in text:
-                  raise SystemExit('Could not locate form-login insertion point')
-              text = text.replace(marker, insert + marker, 1)
-
-          lines = text.splitlines()
-          out = []
-          i = 0
-          while i < len(lines):
-              line = lines[i]
-              out.append(line)
-              if "setCookie(c, 'auth_token'," in line:
-                  j = i + 1
-                  block = []
-                  while j < len(lines):
-                      block.append(lines[j])
-                      if lines[j].strip() == '})':
-                          break
-                      j += 1
-                  if not any('path:' in x for x in block):
-                      indent = '      ' if line.startswith('      ') else '    '
-                      out.append(f"{indent}path: '/',")
-                  i = j
-              i += 1
-          text = '\n'.join(out) + ('\n' if text.endswith('\n') else '')
-          auth.write_text(text, encoding='utf-8')
-
-          app = Path('packages/core/src/app.ts')
-          text = app.read_text(encoding='utf-8')
-          old = "          if (payload) c.set('user', { userId: payload.userId, email: payload.email, role: payload.role, exp: payload.exp, iat: payload.iat })"
-          new = """          if (payload) {
-            const currentUser = await c.env.DB.prepare(
-              'SELECT id, email, role, is_active FROM auth_user WHERE id = ? LIMIT 1'
-            ).bind(payload.userId).first() as { id: string; email: string; role?: string; is_active?: number } | null
-            if (currentUser && currentUser.is_active !== 0) {
-              c.set('user', {
-                userId: String(currentUser.id),
-                email: String(currentUser.email ?? payload.email),
-                role: String(currentUser.role ?? payload.role ?? 'viewer'),
-                exp: payload.exp,
-                iat: payload.iat,
-              })
-            }
-          }"""
-          if old in text:
-              text = text.replace(old, new, 1)
-          app.write_text(text, encoding='utf-8')
-          print('auth repair patch prepared')
+      - name: Run auth repair script
+        run: python .github/scripts/auth_loop_fix.py
 
       - name: Verify repair
         run: |
           grep -n "const browserUser = await c.env.DB.prepare" packages/core/src/routes/auth.ts
-          grep -n "path: '/'" packages/core/src/routes/auth.ts
           grep -n "const currentUser = await c.env.DB.prepare" packages/core/src/app.ts
 
       - name: Commit repair
-        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
