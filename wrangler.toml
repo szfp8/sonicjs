@@ -7,6 +7,7 @@ workers_dev = true
 [[d1_databases]]
 binding = "DB"
 database_name = "szfp8-tax-seo-db"
+database_id = "ef7afcee-e86e-4c42-8ea5-d893fa8394ce"
 migrations_dir = "my-sonicjs-app/migrations"
 
 [[r2_buckets]]
