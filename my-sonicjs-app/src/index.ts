@@ -40,6 +40,33 @@ const config: SonicJSConfig = {
     register: [redirectPlugin, mcpPlugin(), graphqlPlugin(), versioningPlugin],
     disableAll: false,
   },
+  middleware: {
+    // The current SonicJS admin uses document-backed RBAC as its authorization
+    // source. A fresh install can temporarily miss its RBAC assignment because
+    // the registration hook runs during bootstrap. The first registered user is
+    // marked isSuperAdmin by the repair below; this middleware gives that user
+    // the complete live permission matrix without changing normal RBAC users.
+    afterAuth: [async (c: any, next: any) => {
+      const user = c.get('user') as { userId?: string; isSuperAdmin?: boolean } | undefined;
+      if (user?.userId && user.isSuperAdmin === true) {
+        try {
+          const rbac = new RbacService(c.env.DB);
+          const [resources, verbs] = await Promise.all([
+            rbac.getResources(),
+            rbac.getVerbs(),
+          ]);
+          const perms = new Set<string>();
+          for (const resource of resources) {
+            for (const verb of verbs) perms.add(`${resource.key}:${verb.name}`);
+          }
+          c.set('rbacPerms', [...perms]);
+        } catch (error) {
+          console.warn('[Bootstrap] Super-admin permission matrix unavailable:', error);
+        }
+      }
+      return next();
+    }],
+  },
 };
 
 const app = createSonicJSApp(config);
@@ -59,9 +86,10 @@ if (schedules.length > 0) console.log('[cron] Declared schedules:', schedules.jo
  * only a database containing exactly one user is eligible, so a later install
  * with multiple users can never silently promote an arbitrary account.
  *
- * Both authorization sources are repaired:
- *   1. legacy auth_user.role / is_super_admin compatibility fields
- *   2. document-backed rbac_user_roles assignment used by current admin guards
+ * The legacy auth_user role + is_super_admin fields are deliberately repaired
+ * before the normal SonicJS middleware runs. The afterAuth hook above then
+ * bridges this bootstrap-only flag into the current document-backed permission
+ * matrix. No password, email, or account identifier is stored in source code.
  */
 async function ensureBootstrapAdmin(db: D1Database): Promise<void> {
   try {
@@ -76,14 +104,6 @@ async function ensureBootstrapAdmin(db: D1Database): Promise<void> {
       .first<{ id: string; role: string; is_super_admin: number }>();
     if (!user) return;
 
-    // Current SonicJS authorization is document-backed RBAC. Make sure the
-    // system roles exist and explicitly assign Administrator to the first user.
-    const rbac = new RbacService(db);
-    await rbac.ensureSystemRbacSeed();
-    await rbac.addUserRoleByName(user.id, 'admin');
-
-    // Keep legacy compatibility fields in sync as well. Do this after the RBAC
-    // assignment because setUserRoles is the source of truth for authorization.
     if (user.role !== 'admin' || Number(user.is_super_admin) !== 1) {
       await db
         .prepare("UPDATE auth_user SET role = 'admin', is_super_admin = 1, updated_at = ? WHERE id = ?")
