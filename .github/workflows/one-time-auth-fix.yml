@@ -1,0 +1,114 @@
+name: One-time auth loop repair
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: ${{ !contains(github.event.head_commit.message, '[auth-loop-fix]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Repair browser authentication
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          auth = Path('packages/core/src/routes/auth.ts')
+          text = auth.read_text(encoding='utf-8')
+
+          # Make the custom browser JWT cookie valid for every route.
+          text, n1 = re.subn(
+              r"(setCookie\(c, 'auth_token', token, \{\s*\n\s*httpOnly: true,\s*\n\s*secure: (?:true|false)(?:,.*)?\n\s*sameSite: 'Strict',\s*\n\s*maxAge: tokenTtl)(\s*\n\s*\})",
+              r"\1,\n        path: '/'\2",
+              text,
+              flags=re.M,
+          )
+
+          # The HTML form login previously forwarded the Better Auth session but did not
+          # mint the same auth_token used by the application's fallback middleware.
+          marker = "    if (email === DEMO_EMAIL) {"
+          if "const browserUser = await c.env.DB.prepare" not in text:
+              insert = """
+    // Keep browser form login and API login on the same authentication path.
+    // Better Auth already authenticated the password above; now read the current
+    // D1 user so the JWT contains the current role instead of stale client data.
+    const browserUser = await c.env.DB.prepare(
+      'SELECT id, email, role, is_active FROM auth_user WHERE lower(email) = ? LIMIT 1'
+    ).bind(email).first() as { id: string; email: string; role?: string; is_active?: number } | null
+
+    if (!browserUser || browserUser.is_active === 0) {
+      return c.html(html`
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          This account is inactive or could not be found.
+        </div>
+      `)
+    }
+
+    const browserTokenTtl = await getJwtExpirySecondsFromDb(c.env.DB, c.env)
+    const browserToken = await AuthManager.generateToken(
+      browserUser.id,
+      browserUser.email,
+      browserUser.role ?? 'viewer',
+      c.env.JWT_SECRET,
+      browserTokenTtl
+    )
+
+    setCookie(c, 'auth_token', browserToken, {
+      httpOnly: true,
+      secure: new URL(c.req.url).protocol === 'https:',
+      sameSite: 'Strict',
+      path: '/',
+      maxAge: browserTokenTtl,
+    })
+
+"""
+              if marker not in text:
+                  raise SystemExit('Could not locate form-login insertion point')
+              text = text.replace(marker, insert + marker, 1)
+
+          auth.write_text(text, encoding='utf-8')
+          print(f'auth.ts cookie fixes: {n1}; form-login JWT repair inserted: {"yes" if "const browserUser = await c.env.DB.prepare" in text else "no"}')
+
+          app = Path('packages/core/src/app.ts')
+          text = app.read_text(encoding='utf-8')
+          old = """          if (payload) c.set('user', { userId: payload.userId, email: payload.email, role: payload.role, exp: payload.exp, iat: payload.iat })
+"""
+          new = """          if (payload) {
+            // Re-read the user from D1 so a stale JWT cannot carry an obsolete role
+            // or authenticate a deleted/disabled account.
+            const currentUser = await c.env.DB.prepare(
+              'SELECT id, email, role, is_active FROM auth_user WHERE id = ? LIMIT 1'
+            ).bind(payload.userId).first() as { id: string; email: string; role?: string; is_active?: number } | null
+            if (currentUser && currentUser.is_active !== 0) {
+              c.set('user', {
+                userId: String(currentUser.id),
+                email: String(currentUser.email ?? payload.email),
+                role: String(currentUser.role ?? payload.role ?? 'viewer'),
+                exp: payload.exp,
+                iat: payload.iat,
+              })
+            }
+          }
+"""
+          if old not in text:
+              raise SystemExit('Could not locate app.ts JWT fallback')
+          text = text.replace(old, new, 1)
+          app.write_text(text, encoding='utf-8')
+          print('app.ts JWT fallback hardened')
+
+      - name: Commit repair and remove this one-time workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/core/src/routes/auth.ts packages/core/src/app.ts
+          git rm .github/workflows/one-time-auth-fix.yml
+          git commit -m "fix: repair browser auth session loop [auth-loop-fix]"
+          git push
