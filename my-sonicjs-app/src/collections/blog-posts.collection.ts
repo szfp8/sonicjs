@@ -1,58 +1,56 @@
 /**
- * Blog Posts Collection
+ * 网站资讯集合
  *
- * Example collection configuration for blog posts
+ * 面向小白后台用户：用于管理网站资讯/文章，不使用 SonicJS 的通用博客术语。
  */
 
 import type { CollectionConfig } from '@sonicjs-cms/core';
 
 export default {
   name: 'blog_post',
-  displayName: 'Blog Post',
+  displayName: '网站资讯',
   slug: 'blog-posts',
-  description: 'Manage your blog posts',
-  icon: '📝',
+  description: '管理网站资讯、行业动态和获客文章。',
+  icon: '📰',
 
   schema: {
     type: 'object',
     properties: {
       title: {
         type: 'string',
-        title: 'Title',
+        title: '文章标题',
         required: true,
         maxLength: 200,
       },
       slug: {
         type: 'slug',
-        title: 'URL Slug',
+        title: '页面地址（URL）',
         required: true,
         maxLength: 200,
       },
       content: {
         type: 'lexical',
-        title: 'Content',
+        title: '文章正文',
         required: true,
       },
       author: {
         type: 'user',
-        title: 'Author',
+        title: '作者',
         required: true,
       },
       publishedAt: {
         type: 'datetime',
-        title: 'Published Date',
+        title: '发布时间',
       },
     },
     required: ['title', 'slug', 'content', 'author'],
   },
 
-  // List view configuration
   listFields: ['title', 'author', 'status', 'publishedAt'],
   searchFields: ['title', 'content', 'author'],
   defaultSort: 'createdAt',
   defaultSortOrder: 'desc',
 
-  // Mark as config-managed (code-based) collection
   managed: true,
   isActive: true,
 
@@ -60,8 +58,6 @@ export default {
     public: ['read'],
   },
 
-  // Per-collection cache override. TTL in seconds; falls back to the cache plugin
-  // default (CACHE_CONFIGS.api.ttl, currently 300s) if unset.
   cache: {
     enabled: true,
     ttl: 5,
