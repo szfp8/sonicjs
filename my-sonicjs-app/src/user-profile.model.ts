@@ -4,9 +4,12 @@
  * Define custom profile fields for your users. When configured, these fields
  * appear in the admin user create/edit forms.
  *
- * Uncomment and customize defineUserProfile() to activate custom fields.
- * Add to registrationFields to also show a field on the new-user form.
+ * The beginner-friendly admin presentation layer is also loaded here so the
+ * existing SonicJS admin can be used as the secure backend while the visible
+ * interface is tailored to the tax SEO site.
  */
+
+import './admin-beginner-ui';
 
 // import { defineUserProfile } from '@sonicjs-cms/core';
 
