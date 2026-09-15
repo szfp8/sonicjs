@@ -12,15 +12,29 @@ export interface SecuritySettings {
   jwtRefreshGraceSeconds: number
 }
 
+export interface SeoSettings {
+  seoTitle: string
+  seoKeywords: string
+  seoDescription: string
+  canonicalUrl: string
+  robots: string
+  indexNowEnabled: boolean
+}
+
+export interface LeadSettings {
+  contactPhone: string
+  wechat: string
+  leadEnabled: boolean
+  leadMessage: string
+}
+
 const TYPE_ID = 'site_settings'
 const TENANT = 'default'
 
 export class SettingsService {
   constructor(private db: D1Database) {}
 
-  /**
-   * Get settings document for a category (general or security)
-   */
+  /** Get one settings document. */
   private async getSettingsDocument(category: string): Promise<any | null> {
     try {
       const row = await this.db.prepare(`
@@ -28,10 +42,7 @@ export class SettingsService {
         WHERE type_id = ? AND slug = ? AND tenant_id = ? AND is_current_draft = 1 AND deleted_at IS NULL
       `).bind(TYPE_ID, category, TENANT).first()
 
-      if (!row) {
-        return null
-      }
-
+      if (!row) return null
       return JSON.parse((row as any).data)
     } catch (error) {
       console.error(`Error getting settings document for ${category}:`, error)
@@ -39,15 +50,12 @@ export class SettingsService {
     }
   }
 
-  /**
-   * Save settings document for a category (general or security)
-   */
+  /** Save settings in the existing site_settings/documents storage. No new table or migration. */
   private async saveSettingsDocument(category: string, data: Record<string, any>): Promise<boolean> {
     try {
       const now = Math.floor(Date.now() / 1000)
       const jsonData = JSON.stringify(data)
 
-      // Ensure document_types row exists (FK constraint on documents.type_id)
       await this.db.prepare(`
         INSERT OR IGNORE INTO document_types (id, name, display_name, description, schema, source, is_system, is_active, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -57,24 +65,26 @@ export class SettingsService {
         '{}', 'system', 1, 1, now, now
       ).run()
 
-      // Check if document already exists
       const existing = await this.db.prepare(`
         SELECT id FROM documents
         WHERE type_id = ? AND slug = ? AND tenant_id = ? AND is_current_draft = 1 AND deleted_at IS NULL
       `).bind(TYPE_ID, category, TENANT).first() as any
 
       if (existing) {
-        // Update existing document
         await this.db.prepare(`
-          UPDATE documents
-          SET data = ?, updated_at = ?
+          UPDATE documents SET data = ?, updated_at = ?
           WHERE id = ? AND is_current_draft = 1
         `).bind(jsonData, now, existing.id).run()
       } else {
-        // Create new document
         const docId = crypto.randomUUID()
         const rootId = docId
-        const title = category === 'general' ? 'General Settings' : 'Security Settings'
+        const title = category === 'general'
+          ? 'General Settings'
+          : category === 'security'
+            ? 'Security Settings'
+            : category === 'seo'
+              ? 'SEO Settings'
+              : 'Lead Settings'
 
         await this.db.prepare(`
           INSERT INTO documents (
@@ -86,11 +96,7 @@ export class SettingsService {
             '', ?, ?, ?, 'default', '',
             ?, '{}', ?, ?
           )
-        `).bind(
-          docId, rootId, TYPE_ID,
-          category, title, TENANT,
-          jsonData, now, now
-        ).run()
+        `).bind(docId, rootId, TYPE_ID, category, title, TENANT, jsonData, now, now).run()
       }
 
       return true
@@ -100,12 +106,8 @@ export class SettingsService {
     }
   }
 
-  /**
-   * Get general settings with defaults
-   */
   async getGeneralSettings(userEmail?: string): Promise<GeneralSettings> {
     const settings = await this.getSettingsDocument('general')
-
     return {
       siteName: settings?.siteName || 'SonicJS AI',
       siteDescription: settings?.siteDescription || 'A modern headless CMS powered by AI',
@@ -116,36 +118,55 @@ export class SettingsService {
     }
   }
 
-  /**
-   * Save general settings
-   */
   async saveGeneralSettings(settings: Partial<GeneralSettings>): Promise<boolean> {
     const existing = await this.getSettingsDocument('general')
-    const merged = { ...existing, ...settings }
-    return await this.saveSettingsDocument('general', merged)
+    return await this.saveSettingsDocument('general', { ...existing, ...settings })
   }
 
-  /**
-   * Get security settings with defaults
-   */
   async getSecuritySettings(): Promise<SecuritySettings> {
     const settings = await this.getSettingsDocument('security')
-
     return {
       jwtExpiresIn: settings?.jwtExpiresIn || '30d',
-      jwtRefreshGraceSeconds:
-        typeof settings?.jwtRefreshGraceSeconds === 'number'
-          ? settings.jwtRefreshGraceSeconds
-          : 60 * 60 * 24 * 7
+      jwtRefreshGraceSeconds: typeof settings?.jwtRefreshGraceSeconds === 'number'
+        ? settings.jwtRefreshGraceSeconds
+        : 60 * 60 * 24 * 7
     }
   }
 
-  /**
-   * Save security settings
-   */
   async saveSecuritySettings(settings: Partial<SecuritySettings>): Promise<boolean> {
     const existing = await this.getSettingsDocument('security')
-    const merged = { ...existing, ...settings }
-    return await this.saveSettingsDocument('security', merged)
+    return await this.saveSettingsDocument('security', { ...existing, ...settings })
+  }
+
+  async getSeoSettings(): Promise<SeoSettings> {
+    const settings = await this.getSettingsDocument('seo')
+    return {
+      seoTitle: settings?.seoTitle || '全国财税发票服务｜财税与发票咨询',
+      seoKeywords: settings?.seoKeywords || '发票,财税,税务咨询,增值税发票,全国财税服务',
+      seoDescription: settings?.seoDescription || '提供合法合规的财税、发票及税务咨询服务信息，覆盖全国城市。',
+      canonicalUrl: settings?.canonicalUrl || 'https://szfp8.com',
+      robots: settings?.robots || 'index,follow',
+      indexNowEnabled: settings?.indexNowEnabled !== false
+    }
+  }
+
+  async saveSeoSettings(settings: Partial<SeoSettings>): Promise<boolean> {
+    const existing = await this.getSettingsDocument('seo')
+    return await this.saveSettingsDocument('seo', { ...existing, ...settings })
+  }
+
+  async getLeadSettings(): Promise<LeadSettings> {
+    const settings = await this.getSettingsDocument('lead')
+    return {
+      contactPhone: settings?.contactPhone || '',
+      wechat: settings?.wechat || '',
+      leadEnabled: settings?.leadEnabled !== false,
+      leadMessage: settings?.leadMessage || '请通过正规渠道提交真实业务需求，我们将为您提供合法合规的财税服务咨询。'
+    }
+  }
+
+  async saveLeadSettings(settings: Partial<LeadSettings>): Promise<boolean> {
+    const existing = await this.getSettingsDocument('lead')
+    return await this.saveSettingsDocument('lead', { ...existing, ...settings })
   }
 }
