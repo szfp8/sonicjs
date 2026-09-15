@@ -16,11 +16,11 @@ import {
   mcpPlugin,
   redirectPlugin,
   registerCollections,
+  RbacService,
   siteSettingsCollection,
   versioningPlugin,
 } from '@sonicjs-cms/core';
 import type { D1Database } from '@cloudflare/workers-types';
-import { RbacService } from '@sonicjs-cms/core/services/rbac';
 import './user-profile.model';
 
 import blogPostsCollection from './collections/blog-posts.collection';
