@@ -1,6 +1,4 @@
 # Cloudflare Deploy to Cloudflare template configuration.
-# D1 and R2 are intentionally declared without account-specific IDs/namespaces.
-# Cloudflare provisions and binds them during one-click deployment.
 name = "szfp8-tax-seo"
 main = "src/index.ts"
 compatibility_date = "2026-09-01"
@@ -10,6 +8,7 @@ workers_dev = true
 [[d1_databases]]
 binding = "DB"
 database_name = "szfp8-tax-seo-db"
+database_id = "ef7afcee-e86e-4c42-8ea5-d893fa8394ce"
 migrations_dir = "./migrations"
 
 [[r2_buckets]]
@@ -21,10 +20,8 @@ ENVIRONMENT = "production"
 SITE_NAME = "全国财税发票服务"
 SITE_URL = "https://szfp8.com"
 CONTACT_PHONE = ""
-# INDEXNOW_KEY is optional. Do not commit secrets here.
 
 [triggers]
-# UTC: four times per day. IndexNow notifications are sent only when INDEXNOW_KEY is configured.
 crons = ["0 */6 * * *"]
 
 [observability]
