@@ -1,6 +1,9 @@
 name: One-time auth loop repair
 
 on:
+  push:
+    paths:
+      - '.github/auth-fix.trigger'
   workflow_dispatch:
 
 permissions:
@@ -12,25 +15,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Repair browser authentication
         shell: python
         run: |
           from pathlib import Path
-          import re
 
           auth = Path('packages/core/src/routes/auth.ts')
           text = auth.read_text(encoding='utf-8')
 
-          # Ensure every custom auth_token cookie is valid site-wide.
-          text = re.sub(
-              r"(setCookie\(c, ['\"]auth_token['\"], [^,]+, \{)([\s\S]*?)(\n\s*\})",
-              lambda m: m.group(1) + (m.group(2) if re.search(r'\bpath:\s*[\'\"]/[\'\"]', m.group(2)) else m.group(2) + "\n      path: '/',") + m.group(3),
-              text,
-              count=1,
-          )
-
-          # Make the HTML form login mint the same JWT fallback token used by /admin.
+          # The HTML form login must also mint the JWT fallback cookie. The
+          # Better Auth session cookie is forwarded separately, but /admin has
+          # a JWT fallback and the old form handler did not set auth_token.
           marker = "    if (email === DEMO_EMAIL) {"
           if "const browserUser = await c.env.DB.prepare" not in text:
               insert = """
@@ -69,8 +67,30 @@ jobs:
                   raise SystemExit('Could not locate form-login insertion point')
               text = text.replace(marker, insert + marker, 1)
 
+          # Ensure auth_token cookies are site-wide. Do this specifically for
+          # the existing cookie blocks rather than using a broad regex.
+          lines = text.splitlines()
+          out = []
+          i = 0
+          while i < len(lines):
+              line = lines[i]
+              out.append(line)
+              if "setCookie(c, 'auth_token'," in line:
+                  block = []
+                  j = i + 1
+                  depth = 0
+                  while j < len(lines):
+                      block.append(lines[j])
+                      if lines[j].strip() == '})':
+                          break
+                      j += 1
+                  if not any('path:' in x for x in block):
+                      indent = '      ' if line.startswith('      ') else '    '
+                      out.append(f"{indent}path: '/',")
+                  i = j
+              i += 1
+          text = '\n'.join(out) + ('\n' if text.endswith('\n') else '')
           auth.write_text(text, encoding='utf-8')
-          print('auth.ts repaired')
 
           app = Path('packages/core/src/app.ts')
           text = app.read_text(encoding='utf-8')
@@ -89,22 +109,26 @@ jobs:
               })
             }
           }"""
-          if old not in text:
-              raise SystemExit('Could not locate app.ts JWT fallback')
-          text = text.replace(old, new, 1)
+          if old in text:
+              text = text.replace(old, new, 1)
           app.write_text(text, encoding='utf-8')
-          print('app.ts repaired')
+          print('auth repair patch prepared')
 
-      - name: Verify patch
+      - name: Verify repair
         run: |
           grep -n "const browserUser = await c.env.DB.prepare" packages/core/src/routes/auth.ts
           grep -n "path: '/'" packages/core/src/routes/auth.ts
           grep -n "const currentUser = await c.env.DB.prepare" packages/core/src/app.ts
 
       - name: Commit repair
+        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add packages/core/src/routes/auth.ts packages/core/src/app.ts
+          if git diff --cached --quiet; then
+            echo "No auth repair changes are needed."
+            exit 0
+          fi
           git commit -m "fix: repair browser auth session loop [auth-loop-fix]"
           git push
