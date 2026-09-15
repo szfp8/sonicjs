@@ -1,4 +1,5 @@
 import { SEO_CITIES } from './cities';
+import { adminSettingsRoutes } from '@sonicjs-cms/core';
 
 type SeoEnv = {
   DB?: D1Database;
@@ -6,6 +7,9 @@ type SeoEnv = {
   CONTACT_PHONE?: string;
   INDEXNOW_KEY?: string;
 };
+
+const SETTINGS_TYPE = 'site_settings';
+const SETTINGS_TENANT = 'default';
 
 const esc = (value: string) => value
   .replaceAll('&', '&amp;')
@@ -32,6 +36,94 @@ header{background:#0b3b82;color:#fff;padding:22px 5%}main{max-width:1180px;margi
 };
 
 const cityUrl = (request: Request, name: string) => `${new URL(request.url).origin}/city/${encodeURIComponent(name)}`;
+
+async function getStoredSettings(db: D1Database, category: string): Promise<Record<string, any>> {
+  try {
+    const row = await db.prepare(`SELECT data FROM documents WHERE type_id = ? AND slug = ? AND tenant_id = ? AND is_current_draft = 1 AND deleted_at IS NULL`).bind(SETTINGS_TYPE, category, SETTINGS_TENANT).first() as { data?: string } | null;
+    return row?.data ? JSON.parse(row.data) : {};
+  } catch (error) {
+    console.warn(`[tax-seo-settings] read ${category} failed`, error);
+    return {};
+  }
+}
+
+async function saveStoredSettings(db: D1Database, category: string, incoming: Record<string, any>): Promise<boolean> {
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    const existing = await getStoredSettings(db, category);
+    const merged = { ...existing, ...incoming };
+    const jsonData = JSON.stringify(merged);
+    await db.prepare(`INSERT OR IGNORE INTO document_types (id, name, display_name, description, schema, source, is_system, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(SETTINGS_TYPE, SETTINGS_TYPE, 'Site Settings', 'Global site configuration settings', '{}', 'system', 1, 1, now, now).run();
+    const row = await db.prepare(`SELECT id FROM documents WHERE type_id = ? AND slug = ? AND tenant_id = ? AND is_current_draft = 1 AND deleted_at IS NULL`).bind(SETTINGS_TYPE, category, SETTINGS_TENANT).first() as { id?: string } | null;
+    if (row?.id) {
+      await db.prepare(`UPDATE documents SET data = ?, updated_at = ? WHERE id = ? AND is_current_draft = 1`).bind(jsonData, now, row.id).run();
+    } else {
+      const id = crypto.randomUUID();
+      const title = category === 'seo' ? 'SEO Settings' : 'Lead Settings';
+      await db.prepare(`INSERT INTO documents (id, root_id, type_id, version_number, is_current_draft, is_published, status, parent_root_id, slug, title, tenant_id, locale, translation_group_id, data, metadata, created_at, updated_at) VALUES (?, ?, ?, 1, 1, 1, 'published', '', ?, ?, ?, 'default', '', ?, '{}', ?, ?)`).bind(id, id, SETTINGS_TYPE, category, title, SETTINGS_TENANT, jsonData, now, now).run();
+    }
+    return true;
+  } catch (error) {
+    console.error(`[tax-seo-settings] save ${category} failed`, error);
+    return false;
+  }
+}
+
+// These routes are attached before createSonicJSApp() mounts adminSettingsRoutes.
+// They reuse the existing documents/site_settings storage and add no migration.
+adminSettingsRoutes.get('/api/seo', async (c) => {
+  const settings = await getStoredSettings(c.env.DB, 'seo');
+  return c.json({
+    success: true,
+    data: {
+      seoTitle: settings.seoTitle || '全国财税发票服务｜财税与发票咨询',
+      seoKeywords: settings.seoKeywords || '发票,财税,税务咨询,增值税发票,全国财税服务',
+      seoDescription: settings.seoDescription || '提供合法合规的财税、发票及税务咨询服务信息，覆盖全国城市。',
+      canonicalUrl: settings.canonicalUrl || 'https://szfp8.com',
+      robots: settings.robots || 'index,follow',
+      indexNowEnabled: settings.indexNowEnabled !== false,
+    },
+  });
+});
+
+adminSettingsRoutes.post('/api/seo', async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const data = {
+    seoTitle: String(body.seoTitle || '').slice(0, 180),
+    seoKeywords: String(body.seoKeywords || '').slice(0, 500),
+    seoDescription: String(body.seoDescription || '').slice(0, 500),
+    canonicalUrl: String(body.canonicalUrl || '').slice(0, 300),
+    robots: String(body.robots || 'index,follow').slice(0, 100),
+    indexNowEnabled: body.indexNowEnabled !== false,
+  };
+  const ok = await saveStoredSettings(c.env.DB, 'seo', data);
+  return c.json(ok ? { success: true, message: 'SEO设置已保存' } : { success: false, error: 'SEO设置保存失败' }, ok ? 200 : 500);
+});
+
+adminSettingsRoutes.get('/api/lead', async (c) => {
+  const settings = await getStoredSettings(c.env.DB, 'lead');
+  return c.json({
+    success: true,
+    data: {
+      contactPhone: settings.contactPhone || '',
+      wechat: settings.wechat || '',
+      leadEnabled: settings.leadEnabled !== false,
+      leadMessage: settings.leadMessage || '请通过正规渠道提交真实业务需求，我们将为您提供合法合规的财税服务咨询。',
+    },
+  });
+});
+
+adminSettingsRoutes.post('/api/lead', async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const data = {
+    contactPhone: String(body.contactPhone || '').slice(0, 80),
+    wechat: String(body.wechat || '').slice(0, 120),
+    leadEnabled: body.leadEnabled !== false,
+    leadMessage: String(body.leadMessage || '').slice(0, 500),
+  };
+  const ok = await saveStoredSettings(c.env.DB, 'lead', data);
+  return c.json(ok ? { success: true, message: '获客设置已保存' } : { success: false, error: '获客设置保存失败' }, ok ? 200 : 500);
+});
 
 function home(request: Request, env: SeoEnv) {
   const origin = new URL(request.url).origin;
