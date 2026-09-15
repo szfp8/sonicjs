@@ -18,8 +18,8 @@ const script = `
     { text: '网站资讯', href: '/admin/content?model=blog_post', icon: '📄' },
     { text: '政策解读 / SEO资讯', href: '/admin/content?model=seo_article', icon: '📰' },
     { text: 'SEO城市页面', href: '/admin/content?model=seo_city_page', icon: '📍' },
-    { text: 'SEO设置', href: '/admin/settings/seo', icon: '🔎' },
-    { text: '获客设置', href: '/admin/settings/lead', icon: '☎' },
+    { text: 'SEO设置', href: '/admin/settings/general#seo', icon: '🔎' },
+    { text: '获客设置', href: '/admin/settings/general#lead', icon: '☎' },
     { text: '全国城市SEO', href: '/admin/content?model=seo_city_page', icon: '🗺' },
     { text: '搜索引擎收录', href: '/sitemap.xml', icon: '🚀' },
     { text: '网站用户', href: '/admin/users', icon: '👤' },
@@ -39,7 +39,7 @@ const script = `
     if (el && cleanText(el.textContent) !== cleanText(newText)) el.textContent = newText;
   }
   function esc(value) {
-    return String(value == null ? '' : value).replace(/[&<>\"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]; });
+    return String(value == null ? '' : value).replace(/[&<>\\"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','\\"':'&quot;',"'":'&#39;'}[c]; });
   }
 
   function addStyles() {
@@ -93,8 +93,8 @@ const script = `
       '<p>小白模式：先完成基础资料，再设置SEO和获客。下面入口使用现有 SonicJS 设置存储，不新增D1表。</p>' +
       '<div class="tax-seo-setting-grid">' +
         '<div class="tax-seo-setting-card"><b>① 网站基础信息</b><span>网站名称、管理员邮箱、网站描述、时区。</span><a href="/admin/settings/general">进入基础设置 →</a></div>' +
-        '<div class="tax-seo-setting-card"><b>② SEO设置</b><span>SEO标题、关键词、描述、规范网址和Robots。</span><a href="/admin/settings/seo">进入SEO设置 →</a></div>' +
-        '<div class="tax-seo-setting-card"><b>③ 获客设置</b><span>联系电话、微信、线索入口和合规提示。</span><a href="/admin/settings/lead">进入获客设置 →</a></div>' +
+        '<div class="tax-seo-setting-card"><b>② SEO设置</b><span>SEO标题、关键词、描述、规范网址和Robots。</span><a href="/admin/settings/general#seo">进入SEO设置 →</a></div>' +
+        '<div class="tax-seo-setting-card"><b>③ 获客设置</b><span>联系电话、微信、线索入口和合规提示。</span><a href="/admin/settings/general#lead">进入获客设置 →</a></div>' +
         '<div class="tax-seo-setting-card"><b>④ 全国城市SEO</b><span>管理全国城市落地页和城市关键词。</span><a href="/admin/content?model=seo_city_page">管理城市页面 →</a></div>' +
         '<div class="tax-seo-setting-card"><b>⑤ 内容发布</b><span>网站资讯、政策解读和SEO资讯。</span><a href="/admin/content">进入内容管理 →</a></div>' +
         '<div class="tax-seo-setting-card"><b>⑥ 收录工具</b><span>Sitemap、Robots和IndexNow入口。</span><a href="/sitemap.xml" target="_blank">查看Sitemap →</a></div>' +
