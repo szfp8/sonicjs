@@ -13,23 +13,20 @@
     "test": "vitest --run"
   },
   "dependencies": {
-    "@sonicjs-cms/core": "file:../packages/core",
-    "defu": "^6.1.7",
-    "mime": "^4.1.0"
+    "@sonicjs-cms/core": "file:../packages/core"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260724.1",
+    "@cloudflare/workers-types": "^4.20250620.0",
     "@types/node": "^20.19.1",
-    "hono": "^4.12.26",
+    "drizzle-kit": "^0.30.0",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.18",
     "typescript": "^5.8.3",
-    "vitest": "^4.1.9",
+    "vitest": "^2.1.8",
     "wrangler": "^4.65.0",
     "zod": "^3.25.67"
   },
   "engines": {
     "node": ">=18.0.0"
-  },
-  "optionalDependencies": {
-    "@hono/node-server": "^2.0.10"
   }
 }
