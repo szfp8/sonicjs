@@ -19,6 +19,7 @@ bucket_name = "szfp8-tax-seo-media"
 ENVIRONMENT = "production"
 SITE_NAME = "全国财税发票服务"
 SITE_URL = "https://szfp8.com"
+BETTER_AUTH_URL = "https://szfp8.com"
 CONTACT_PHONE = ""
 
 [triggers]
