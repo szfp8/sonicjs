@@ -23,7 +23,7 @@ BETTER_AUTH_URL = "https://szfp8.com"
 CONTACT_PHONE = ""
 
 [triggers]
-crons = ["0 */6 * * *"]
+crons = ["*/10 * * * *"]
 
 [observability]
 enabled = true
