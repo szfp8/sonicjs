@@ -25,5 +25,8 @@ CONTACT_PHONE = ""
 [triggers]
 crons = ["*/10 * * * *"]
 
+[build]
+command = "cd ../packages/core && npm install --ignore-scripts --no-audit --no-fund && npm run build"
+
 [observability]
 enabled = true
