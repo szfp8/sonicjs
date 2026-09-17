@@ -8,10 +8,16 @@ const root = process.cwd();
 const appDir = `${root}/my-sonicjs-app`;
 const configPath = `${appDir}/wrangler.production.toml`;
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
-const run = (args, opts = {}) => {
+const runNpx = (args, opts = {}) => {
   console.log(`\n> npx ${args.join(' ')}`);
-  execFileSync(npx, args, { cwd: root, stdio: 'inherit', shell: false, ...opts });
+  execFileSync(npx, args, { cwd: appDir, stdio: 'inherit', shell: false, ...opts });
+};
+
+const runNpm = (args, opts = {}) => {
+  console.log(`\n> npm ${args.join(' ')}`);
+  execFileSync(npm, args, { cwd: appDir, stdio: 'inherit', shell: false, ...opts });
 };
 
 const rl = createInterface({ input, output });
@@ -24,13 +30,13 @@ try {
   console.log('================================================');
   console.log(' 财税 SEO Cloudflare 一键部署');
   console.log('================================================');
-  console.log('本脚本不会迁移、删除或重置 D1。');
-  console.log('普通部署只上传 Worker 代码。');
+  console.log('本脚本只部署 Worker，不迁移、不重置、不删除 D1。');
+  console.log('生产入口使用 my-sonicjs-app/src/entrypoint.ts。');
 
-  try { run(['wrangler', 'whoami']); }
+  try { runNpx(['wrangler', 'whoami']); }
   catch {
     console.log('\n首次使用需要登录 Cloudflare，浏览器会自动打开。');
-    run(['wrangler', 'login']);
+    runNpx(['wrangler', 'login']);
   }
 
   const workerName = (await ask('Worker 名称', 'szfp8-tax-seo')).replace(/[^a-zA-Z0-9-]/g, '-');
@@ -47,41 +53,45 @@ try {
   let d1Id = '';
   try {
     const raw = execFileSync(npx, ['wrangler', 'd1', 'info', d1Name, '--json'], {
-      cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], shell: false,
+      cwd: appDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], shell: false,
     });
     const info = JSON.parse(raw);
     d1Id = info.uuid || info.id || info.database_id || info.databaseId || '';
   } catch {
     throw new Error(`找不到 D1 数据库 ${d1Name}。请确认 Cloudflare 中的 D1 名称正确。`);
   }
+  if (!d1Id) throw new Error(`D1 ${d1Name} 没有读取到 database_id。`);
 
-  const config = `# Generated locally. Do not commit this file.\nname = "${workerName}"\nmain = "src/index.ts"\ncompatibility_date = "2026-09-01"\ncompatibility_flags = ["nodejs_compat"]\nworkers_dev = true\n\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "${d1Name}"\ndatabase_id = "${d1Id}"\nmigrations_dir = "./migrations"\n\n[[r2_buckets]]\nbinding = "MEDIA_BUCKET"\nbucket_name = "szfp8-tax-seo-media"\n\n[vars]\nENVIRONMENT = "production"\nSITE_NAME = "${siteName.replaceAll('"', '\\"')}"\nSITE_URL = "${siteUrl}"\nBETTER_AUTH_URL = "${siteUrl}"\nCONTACT_PHONE = "${phone.replaceAll('"', '\\"')}"\n\n[[routes]]\npattern = "${domain}"\ncustom_domain = true\n\n[triggers]\ncrons = ["0 */6 * * *"]\n\n[observability]\nenabled = true\n`;
+  const config = `# Generated locally. Do not commit this file.\nname = "${workerName}"\nmain = "src/entrypoint.ts"\ncompatibility_date = "2026-09-01"\ncompatibility_flags = ["nodejs_compat"]\nworkers_dev = true\n\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "${d1Name}"\ndatabase_id = "${d1Id}"\nmigrations_dir = "./migrations"\n\n[[r2_buckets]]\nbinding = "MEDIA_BUCKET"\nbucket_name = "szfp8-tax-seo-media"\n\n[vars]\nENVIRONMENT = "production"\nSITE_NAME = "${siteName.replaceAll('"', '\\"')}"\nSITE_URL = "${siteUrl}"\nBETTER_AUTH_URL = "${siteUrl}"\nCONTACT_PHONE = "${phone.replaceAll('"', '\\"')}"\n\n[[routes]]\npattern = "${domain}"\ncustom_domain = true\n\n[triggers]\ncrons = ["0 */6 * * *"]\n\n[observability]\nenabled = true\n`;
 
   writeFileSync(configPath, config, 'utf8');
   console.log(`\n已生成临时 Cloudflare 配置：${configPath}`);
 
-  console.log('\n安装依赖...');
-  run(['install']);
+  console.log('\n安装应用目录依赖...');
+  runNpm(['install']);
 
   console.log('\n配置 Better Auth 密钥...');
   const authSecret = randomBytes(32).toString('base64url');
-  try {
-    execFileSync(npx, ['wrangler', 'secret', 'put', 'BETTER_AUTH_SECRET', '--config', configPath], {
-      cwd: root, input: `${authSecret}\n`, stdio: ['pipe', 'inherit', 'inherit'], shell: false,
-    });
-  } catch {
-    throw new Error('BETTER_AUTH_SECRET 设置失败，请在 Cloudflare Worker Secrets 中设置后再部署。');
-  }
+  execFileSync(npx, ['wrangler', 'secret', 'put', 'BETTER_AUTH_SECRET', '--config', configPath], {
+    cwd: appDir, input: `${authSecret}\n`, stdio: ['pipe', 'inherit', 'inherit'], shell: false,
+  });
+
+  console.log('\n配置 IndexNow 密钥...');
+  const indexNowKey = randomBytes(16).toString('hex');
+  execFileSync(npx, ['wrangler', 'secret', 'put', 'INDEXNOW_KEY', '--config', configPath], {
+    cwd: appDir, input: `${indexNowKey}\n`, stdio: ['pipe', 'inherit', 'inherit'], shell: false,
+  });
 
   console.log('\n部署 Worker（不会执行 D1 migration）...');
-  run(['wrangler', 'deploy', '--config', configPath]);
+  runNpx(['wrangler', 'deploy', '--config', configPath]);
 
   console.log('\n================================================');
   console.log(' 部署完成');
   console.log('================================================');
   console.log(`网站：https://${domain}`);
   console.log(`登录：https://${domain}/auth/login`);
-  console.log('SEO：/robots.txt  /sitemap.xml  /news  /contact');
+  console.log('SEO：/robots.txt  /sitemap.xml  /news  /search  /contact');
+  console.log('文章：/article/<slug>');
   console.log('城市：/city/<city-name>');
   console.log('D1：只读取信息，没有自动执行 migration。');
 } catch (error) {
