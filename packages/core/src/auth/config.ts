@@ -59,6 +59,19 @@ import { isRegistrationEnabled, isFirstUserRegistration } from '../services/auth
 import { getTwoFactorPolicy } from './two-factor-settings'
 import type { Bindings } from '../app'
 
+// The tenant tables intentionally keep their historical NOT NULL `updatedAt` columns.
+// Better Auth's organization plugin does not declare those plugin timestamps, so the
+// Drizzle adapter must see a client-side default or it rejects the schema before auth
+// requests are handled. Mark the existing Drizzle columns as defaulted without changing
+// the D1 schema or requiring a migration.
+for (const table of [authTenant, authTenantMember, authTenantInvitation, authTenantTeam]) {
+  const updatedAt = (table as any).updatedAt
+  if (updatedAt?.config) {
+    updatedAt.config.hasDefault = true
+    updatedAt.config.defaultFn = () => new Date()
+  }
+}
+
 /**
  * Verify a password against a SonicJS legacy PBKDF2 hash:
  *   pbkdf2:<iterations>:<saltHex>:<hashHex>   (PBKDF2-SHA256, 256-bit)
