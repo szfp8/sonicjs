@@ -11,7 +11,7 @@
 - Deploy command: `npx wrangler deploy`
 - Worker: `szfp8-tax-seo`
 
-Cloudflare Workers Builds 官方流程是“Build command（可选）→ Deploy command”，默认部署命令就是 `npx wrangler deploy`。本项目已经提供独立的 `my-sonicjs-app/wrangler.toml`，因此不需要 Cloudflare 自动生成另一套配置。 citeturn0search2
+Cloudflare Workers Builds 官方流程是“Build command（可选）→ Deploy command”，默认部署命令就是 `npx wrangler deploy`。本项目已经提供独立的 `my-sonicjs-app/wrangler.toml`，因此不需要 Cloudflare 自动生成另一套配置。
 
 ## 固定生产资源
 
