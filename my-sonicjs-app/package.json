@@ -1,14 +1,14 @@
 {
   "name": "my-sonicjs-app",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
-  "description": "SonicJS tax and invoice SEO site for Cloudflare Workers",
+  "description": "全国财税发票 SEO 网站 - Cloudflare Workers + D1 + R2",
   "type": "module",
   "scripts": {
-    "build": "echo 'Cloudflare Workers build is handled by Wrangler'",
-    "deploy": "npm run db:migrate:remote && npx wrangler deploy",
+    "build": "echo Cloudflare Workers build ready",
+    "deploy": "npx wrangler deploy",
+    "db:migrate": "npx wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "npx wrangler d1 migrations apply DB --remote",
-    "db:migrate": "npx wrangler d1 migrations apply DB",
     "type-check": "tsc --noEmit",
     "test": "vitest --run"
   },
@@ -16,17 +16,17 @@
     "@sonicjs-cms/core": "3.0.0-beta.28"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250620.0",
-    "@types/node": "^20.19.1",
-    "drizzle-kit": "^0.30.0",
+    "@cloudflare/workers-types": "^5.20260724.1",
+    "@types/node": "^24.9.2",
+    "drizzle-kit": "^0.31.2",
     "drizzle-orm": "^0.45.2",
-    "hono": "^4.12.18",
-    "typescript": "^5.8.3",
-    "vitest": "^2.1.8",
-    "wrangler": "^4.65.0",
-    "zod": "^3.25.67"
+    "hono": "^4.12.26",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.9",
+    "wrangler": "^4.133.0",
+    "zod": "^4.1.12"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }
