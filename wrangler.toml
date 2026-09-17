@@ -1,5 +1,7 @@
+# Production Cloudflare Workers configuration.
+# The preferred Cloudflare Workers Builds root directory is my-sonicjs-app.
 name = "szfp8-tax-seo"
-main = "my-sonicjs-app/src/index.ts"
+main = "my-sonicjs-app/src/entrypoint.ts"
 compatibility_date = "2026-09-01"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
