@@ -36,6 +36,40 @@ registerCollections([
 ]);
 
 const config: SonicJSConfig = {
+  auth: {
+    extendBetterAuth: (opts: any) => ({
+      ...opts,
+      // Better Auth's organization plugin expects field-mapping values to be
+      // Drizzle property keys, not raw SQL column names. SonicJS's tenant
+      // tables expose `tenantId` -> `tenant_id` through Drizzle, so keep the
+      // existing D1 schema and correct only the runtime mapping here.
+      plugins: opts.plugins?.map((plugin: any) => {
+        if (plugin?.id !== 'organization') return plugin;
+        const schema = plugin.options?.schema ?? {};
+        return {
+          ...plugin,
+          options: {
+            ...plugin.options,
+            schema: {
+              ...schema,
+              member: {
+                ...schema.member,
+                fields: { ...(schema.member?.fields ?? {}), organizationId: 'tenantId' },
+              },
+              invitation: {
+                ...schema.invitation,
+                fields: { ...(schema.invitation?.fields ?? {}), organizationId: 'tenantId' },
+              },
+              team: {
+                ...schema.team,
+                fields: { ...(schema.team?.fields ?? {}), organizationId: 'tenantId' },
+              },
+            },
+          },
+        };
+      }),
+    }),
+  },
   plugins: {
     register: [redirectPlugin, mcpPlugin(), graphqlPlugin(), versioningPlugin],
     disableAll: false,
