@@ -1,62 +1,117 @@
-# Cloudflare one-click deployment
+# 财税 SEO Cloudflare 一键部署版
 
-This repository contains a production-oriented SonicJS application plus a small SEO layer for a tax/invoice information website.
+本仓库现在只以 `szfp8-tax-seo` 作为生产 Worker。
 
-## What was changed
+## Cloudflare Workers Builds
 
-- Removed the old hard-coded Cloudflare account, D1, KV and R2 identifiers from the app config.
-- Added a Windows `START_HERE.bat` launcher.
-- Added an interactive Wrangler setup script that uses the user's own Cloudflare login.
-- Uses an existing D1 database and applies pending migrations remotely.
-- Keeps the admin password out of GitHub and out of deployment scripts.
-- Adds 314 crawlable city landing pages under `/city/<city-name>`.
-- Adds `/robots.txt` and `/sitemap.xml`.
-- Adds `/news` with the content workflow: `来源 + 原创解读 + 企业实际价值`.
-- Adds `/contact` and D1-backed lead capture at `POST /api/lead`.
-- Adds admin collections for SEO articles and city pages.
-- Adds optional IndexNow notification support.
-- Adds a GitHub Actions production deployment workflow.
-- Adds a six-hour Cron Trigger for maintenance/IndexNow notifications.
+- Repository: `szfp8/sonicjs`
+- Branch: `main`
+- Root directory: 留空
+- Build command: `npm run build`
+- Deploy command: `npx wrangler deploy`
+- Worker: `szfp8-tax-seo`
 
-## Windows: easiest path
+## 固定生产资源
 
-1. Download/clone this repository to the Windows computer.
-2. Make sure Node.js 20 LTS or newer is installed.
-3. Double-click `START_HERE.bat`.
-4. The first run opens Cloudflare login in a browser if Wrangler is not already logged in.
-5. Enter your Worker name, domain, and existing D1 database name.
-6. The script discovers the D1 ID, applies migrations, deploys the Worker and configures the custom domain.
-7. Finish the SonicJS admin first-run setup and choose your own admin credentials.
+- D1: `szfp8-tax-seo-db`
+- D1 ID: `ef7afcee-e86e-4c42-8ea5-d893fa8394ce`
+- R2: `szfp8-tax-seo-media`
+- Site: `https://szfp8.com`
 
-The script never asks for or stores your admin password.
+## 本版的关键原则
 
-## Important Cloudflare behavior
+### 1. 普通部署不自动迁移 D1
 
-The deployment uses a Worker Custom Domain. Cloudflare creates the DNS record and certificate for the custom domain when the Worker is attached to it. If the hostname already has an incompatible CNAME record, remove/adjust that record before deploying the Custom Domain.
+Cloudflare 每次代码部署只执行：
 
-## GitHub Actions
+`npx wrangler deploy`
 
-The workflow `.github/workflows/deploy-cloudflare-production.yml` supports `workflow_dispatch` and pushes to `main`.
+不会自动执行：
 
-For GitHub Actions, add these repository secrets:
+`wrangler d1 migrations apply --remote`
 
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
-- `D1_DATABASE_ID`
-- `D1_DATABASE_NAME`
-- `SITE_URL`
-- `SITE_NAME`
-- `CONTACT_PHONE` (optional)
-- `INDEXNOW_KEY` (optional)
+这样代码更新不会因为旧数据库状态、重复迁移或无意义 D1 请求导致部署失败。
 
-Local Windows deployment does not require GitHub Actions secrets; it uses Wrangler OAuth login.
+数据库迁移统一保留在：
 
-## Production content rules
+`my-sonicjs-app/migrations/`
 
-The public SEO layer is intentionally written for lawful tax and invoice workflows. It does not provide fake transaction, false invoice, invoice trading, or other illegal tax-evasion functionality.
+只有真正需要升级数据库结构时才单独执行迁移。
 
-For policy/news content, use the structure:
+### 2. 不在代码里写死管理员密码
 
-> 来源 + 原创解读 + 企业实际价值
+生产必须通过 Cloudflare Worker Secret 提供：
 
-Do not mass-publish copied or fabricated policy text. Verify important policy claims against the latest official source before publishing.
+`BETTER_AUTH_SECRET`
+
+管理员邮箱和密码由第一次注册/现有 SonicJS Auth 流程处理，不写入 GitHub。
+
+### 3. D1 只承担真正需要的数据
+
+SEO 页面、城市页面、文章、获客表单继续优先复用现有 SonicJS document/content 能力，不因为增加后台菜单就随意创建新表。
+
+### 4. 定时任务低频运行
+
+生产 Cron 固定为每 6 小时一次：
+
+`0 */6 * * *`
+
+避免为了 SEO 功能进行无意义的高频 D1 请求。
+
+## 生产入口
+
+Worker 入口：
+
+`my-sonicjs-app/src/index.ts`
+
+SEO：
+
+`my-sonicjs-app/src/seo/`
+
+内容集合：
+
+`my-sonicjs-app/src/collections/`
+
+D1 migrations：
+
+`my-sonicjs-app/migrations/`
+
+## 部署后
+
+Cloudflare Build 成功后访问：
+
+`https://szfp8.com/`
+
+登录：
+
+`https://szfp8.com/auth/login`
+
+SEO 基础入口：
+
+`/robots.txt`
+
+`/sitemap.xml`
+
+城市页面：
+
+`/city/<city-name>`
+
+新闻入口：
+
+`/news`
+
+联系/获客入口：
+
+`/contact`
+
+内容工作流保持：
+
+**来源 + 原创解读 + 企业实际价值**
+
+## 不需要做的事情
+
+- 不需要手动改源代码
+- 不需要手动运行 npm deploy
+- 不需要每次部署重新迁移 D1
+- 不需要把管理员密码写进 GitHub
+- 不需要为了 SEO 菜单新增大量 D1 表
