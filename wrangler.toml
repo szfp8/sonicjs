@@ -1,30 +1,33 @@
-# Production Cloudflare Workers configuration.
-# The preferred Cloudflare Workers Builds root directory is my-sonicjs-app.
+# Cloudflare Workers production configuration
+# Domain, D1 and R2 can be configured after deployment
+
 name = "szfp8-tax-seo"
 main = "my-sonicjs-app/src/entrypoint.ts"
 compatibility_date = "2026-09-01"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
-[[d1_databases]]
-binding = "DB"
-database_name = "szfp8-tax-seo-db"
-database_id = "ef7afcee-e86e-4c42-8ea5-d893fa8394ce"
-migrations_dir = "my-sonicjs-app/migrations"
+# Add your D1 database after Cloudflare creates it
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "your-db-name"
+# database_id = "your-db-id"
+# migrations_dir = "my-sonicjs-app/migrations"
 
-[[r2_buckets]]
-binding = "MEDIA_BUCKET"
-bucket_name = "szfp8-tax-seo-media"
+# Add R2 media storage after deployment if needed
+# [[r2_buckets]]
+# binding = "MEDIA_BUCKET"
+# bucket_name = "your-media-bucket"
 
 [vars]
 ENVIRONMENT = "production"
 SITE_NAME = "全国财税发票服务"
-SITE_URL = "https://szfp8.com"
-BETTER_AUTH_URL = "https://szfp8.com"
+SITE_URL = ""
+BETTER_AUTH_URL = ""
 CONTACT_PHONE = ""
 
 [triggers]
-crons = ["0 */6 * * *"]
+crons = ["*/10 * * * *"]
 
 [observability]
 enabled = true
