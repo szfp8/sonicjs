@@ -63,9 +63,6 @@ try {
   console.log('\n安装依赖...');
   run(['install']);
 
-  console.log('\n部署 Worker（不会执行 D1 migration）...');
-  run(['wrangler', 'deploy', '--config', configPath]);
-
   console.log('\n配置 Better Auth 密钥...');
   const authSecret = randomBytes(32).toString('base64url');
   try {
@@ -73,8 +70,11 @@ try {
       cwd: root, input: `${authSecret}\n`, stdio: ['pipe', 'inherit', 'inherit'], shell: false,
     });
   } catch {
-    console.log('BETTER_AUTH_SECRET 设置失败。请在 Cloudflare Worker Secrets 中手动设置。');
+    throw new Error('BETTER_AUTH_SECRET 设置失败，请在 Cloudflare Worker Secrets 中设置后再部署。');
   }
+
+  console.log('\n部署 Worker（不会执行 D1 migration）...');
+  run(['wrangler', 'deploy', '--config', configPath]);
 
   console.log('\n================================================');
   console.log(' 部署完成');
