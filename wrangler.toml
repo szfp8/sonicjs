@@ -1,5 +1,6 @@
 # Cloudflare Workers production configuration
-# Domain, D1 and R2 can be configured after deployment
+# Domain, D1 and R2 are configured after deployment
+# Project: szfp8-tax-seo
 
 name = "szfp8-tax-seo"
 main = "my-sonicjs-app/src/entrypoint.ts"
@@ -7,17 +8,17 @@ compatibility_date = "2026-09-01"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
-# Add your D1 database after Cloudflare creates it
+# Uncomment after creating D1
 # [[d1_databases]]
 # binding = "DB"
-# database_name = "your-db-name"
-# database_id = "your-db-id"
+# database_name = "szfp8-tax-seo-db"
+# database_id = "YOUR_D1_ID"
 # migrations_dir = "my-sonicjs-app/migrations"
 
-# Add R2 media storage after deployment if needed
+# Uncomment after creating R2
 # [[r2_buckets]]
 # binding = "MEDIA_BUCKET"
-# bucket_name = "your-media-bucket"
+# bucket_name = "szfp8-tax-seo-media"
 
 [vars]
 ENVIRONMENT = "production"
@@ -26,6 +27,7 @@ SITE_URL = ""
 BETTER_AUTH_URL = ""
 CONTACT_PHONE = ""
 
+# SEO/content scheduled tasks
 [triggers]
 crons = ["*/10 * * * *"]
 
