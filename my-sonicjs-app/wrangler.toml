@@ -1,6 +1,7 @@
 # Production Cloudflare Workers configuration.
 # Cloudflare Workers Builds can deploy this directory directly.
 # Deploy does not execute D1 migrations automatically.
+# Domain / Custom Domain: leave empty — do not configure routes here.
 name = "szfp8-tax-seo"
 main = "src/entrypoint.ts"
 compatibility_date = "2026-09-01"
@@ -20,8 +21,8 @@ bucket_name = "szfp8-tax-seo-media"
 [vars]
 ENVIRONMENT = "production"
 SITE_NAME = "全国财税发票服务"
-SITE_URL = "https://szfp8.com"
-BETTER_AUTH_URL = "https://szfp8.com"
+SITE_URL = ""
+BETTER_AUTH_URL = ""
 CONTACT_PHONE = ""
 
 [triggers]
