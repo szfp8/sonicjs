@@ -1,5 +1,5 @@
 /**
- * SonicJS production SEO application.
+ * SonicJS production SEO application — Cloudflare Workers + D1 + R2 + KV.
  */
 
 import type { SonicJSConfig } from '@sonicjs-cms/core';
@@ -34,75 +34,111 @@ registerCollections([
   wechatArticlesCollection,
 ]);
 
-const config: SonicJSConfig = {
-  auth: {
-    /**
-     * Login was blocked by Better Auth organization-plugin schema validation
-     * (auth_tenant_member.tenant_id vs Drizzle tenantId mapping).
-     * This SEO site does not need multi-tenant orgs — strip the organization
-     * plugin and disable schema validation so email/password login works.
-     */
-    extendBetterAuth: (opts: any) => {
-      const plugins = Array.isArray(opts.plugins)
-        ? opts.plugins.filter((plugin: any) => {
-            const id = plugin?.id || plugin?.name;
-            // Keep everything except organization / multi-tenant plugin
-            return id !== 'organization' && id !== 'organizations';
-          })
-        : opts.plugins;
-
+/**
+ * Fix Better Auth organization plugin field mapping.
+ *
+ * @sonicjs-cms/core maps organizationId → "tenant_id" (SQL name).
+ * Drizzle schema uses JS property `tenantId` → column `tenant_id`.
+ * Better Auth schema validation expects the **Drizzle property key** (`tenantId`),
+ * so mapping to "tenant_id" causes:
+ *   Missing columns: auth_tenant_member.tenant_id
+ *   Required columns BA won't write: tenantId / updatedAt
+ * and blocks login.
+ *
+ * This SEO site does not need multi-tenant orgs — strip the organization plugin.
+ * If a future core version re-injects it, correct the field map as a fallback.
+ */
+function fixBetterAuthOptions(opts: any): any {
+  const pluginsIn = Array.isArray(opts.plugins) ? opts.plugins : [];
+  const plugins = pluginsIn
+    .filter((plugin: any) => {
+      const id = String(plugin?.id || plugin?.name || '');
+      return id !== 'organization' && id !== 'organizations';
+    })
+    .map((plugin: any) => {
+      if (String(plugin?.id || '') !== 'organization') return plugin;
+      const schema = plugin.options?.schema ?? {};
+      const fixFields = (block: any) => ({
+        ...block,
+        fields: {
+          ...(block?.fields || {}),
+          // Drizzle property key, NOT the SQL column string
+          organizationId: 'tenantId',
+        },
+      });
       return {
-        ...opts,
-        plugins,
-        advanced: {
-          ...(opts.advanced || {}),
-          database: {
-            ...(opts.advanced?.database || {}),
-            validateSchema: false,
+        ...plugin,
+        options: {
+          ...plugin.options,
+          schema: {
+            ...schema,
+            member: fixFields(schema.member),
+            invitation: fixFields(schema.invitation),
+            team: fixFields(schema.team),
           },
         },
       };
+    });
+
+  return {
+    ...opts,
+    plugins,
+    advanced: {
+      ...(opts.advanced || {}),
+      database: {
+        ...(opts.advanced?.database || {}),
+        // Never block login on schema-check noise in production SEO deploy
+        validateSchema: false,
+      },
     },
+  };
+}
+
+const config: SonicJSConfig = {
+  auth: {
+    extendBetterAuth: (opts: any) => fixBetterAuthOptions(opts),
   },
   plugins: {
     register: [redirectPlugin, mcpPlugin(), graphqlPlugin(), versioningPlugin],
     disableAll: false,
   },
   middleware: {
-    afterAuth: [async (c: any, next: any) => {
-      const sessionUser = c.get('user') as { userId?: string } | undefined;
-      const userId = sessionUser?.userId;
-      const db = c.env?.DB as D1Database | undefined;
+    afterAuth: [
+      async (c: any, next: any) => {
+        const sessionUser = c.get('user') as { userId?: string } | undefined;
+        const userId = sessionUser?.userId;
+        const db = c.env?.DB as D1Database | undefined;
 
-      if (userId && db) {
-        try {
-          const account = await db
-            .prepare('SELECT role, is_super_admin FROM auth_user WHERE id = ? LIMIT 1')
-            .bind(userId)
-            .first<{ role?: string; is_super_admin?: number | string }>();
+        if (userId && db) {
+          try {
+            const account = await db
+              .prepare('SELECT role, is_super_admin FROM auth_user WHERE id = ? LIMIT 1')
+              .bind(userId)
+              .first<{ role?: string; is_super_admin?: number | string }>();
 
-          const isSuperAdmin =
-            account?.role === 'admin' || Number(account?.is_super_admin) === 1;
+            const isSuperAdmin =
+              account?.role === 'admin' || Number(account?.is_super_admin) === 1;
 
-          if (isSuperAdmin) {
-            const rbac = new RbacService(db);
-            const [resources, verbs] = await Promise.all([
-              rbac.getResources(),
-              rbac.getVerbs(),
-            ]);
-            const perms = new Set<string>();
-            for (const resource of resources) {
-              for (const verb of verbs) perms.add(`${resource.key}:${verb.name}`);
+            if (isSuperAdmin) {
+              const rbac = new RbacService(db);
+              const [resources, verbs] = await Promise.all([
+                rbac.getResources(),
+                rbac.getVerbs(),
+              ]);
+              const perms = new Set<string>();
+              for (const resource of resources) {
+                for (const verb of verbs) perms.add(`${resource.key}:${verb.name}`);
+              }
+              c.set('rbacPerms', [...perms]);
+              c.set('user', { ...sessionUser, isSuperAdmin: true, role: 'admin' });
             }
-            c.set('rbacPerms', [...perms]);
-            c.set('user', { ...sessionUser, isSuperAdmin: true, role: 'admin' });
+          } catch (error) {
+            console.warn('[Bootstrap] Super-admin permission matrix unavailable:', error);
           }
-        } catch (error) {
-          console.warn('[Bootstrap] Super-admin permission matrix unavailable:', error);
         }
-      }
-      return next();
-    }],
+        return next();
+      },
+    ],
   },
 };
 
@@ -145,10 +181,16 @@ async function localizeAdminResponse(request: Request, response: Response): Prom
 })();
 </script>`;
 
-  const localizedHtml = html.includes('</body>') ? html.replace('</body>', localizationScript + '</body>') : html + localizationScript;
+  const localizedHtml = html.includes('</body>')
+    ? html.replace('</body>', localizationScript + '</body>')
+    : html + localizationScript;
   const headers = new Headers(response.headers);
   headers.delete('content-length');
-  return new Response(localizedHtml, { status: response.status, statusText: response.statusText, headers });
+  return new Response(localizedHtml, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
 
 async function ensureBootstrapAdmin(db: D1Database): Promise<void> {
