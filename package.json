@@ -2,27 +2,19 @@
   "name": "szfp8-tax-seo",
   "version": "1.0.0",
   "private": true,
+  "description": "全国财税发票 SEO 网站 - Cloudflare Workers + D1 + R2",
   "type": "module",
-  "workspaces": ["packages/*", "my-sonicjs-app"],
   "scripts": {
+    "setup": "node scripts/cloudflare/setup.mjs",
     "build": "npm run build --workspace=my-sonicjs-app",
-    "deploy": "npx wrangler deploy",
-    "dev": "npm run dev --workspace=my-sonicjs-app",
-    "db:migrate": "npm run db:migrate --workspace=my-sonicjs-app",
+    "deploy": "npm run deploy --workspace=my-sonicjs-app",
     "db:migrate:remote": "npm run db:migrate:remote --workspace=my-sonicjs-app",
     "type-check": "npm run type-check --workspace=my-sonicjs-app"
   },
-  "dependencies": {
-    "@sonicjs-cms/core": "3.0.0-beta.28",
-    "drizzle-orm": "^0.45.2",
-    "hono": "^4.12.26",
-    "zod": "^4.1.12"
-  },
-  "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260724.1",
-    "@types/node": "^24.9.2",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.9",
-    "wrangler": "^4.133.0"
+  "workspaces": [
+    "my-sonicjs-app"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
   }
 }
