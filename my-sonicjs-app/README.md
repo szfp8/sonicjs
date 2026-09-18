@@ -1,132 +1,33 @@
-# My SonicJS Application
+# 财税 SEO 生产应用（my-sonicjs-app）
 
-A modern headless CMS built with [SonicJS](https://sonicjs.com) on Cloudflare's edge platform.
+Cloudflare Workers 实际部署目录。根目录请看仓库 [README.md](../README.md) 一键部署说明。
 
-## Getting Started
+## 快速命令
 
-### Prerequisites
-
-- Node.js 18 or higher
-- A Cloudflare account (free tier works great)
-- Wrangler CLI (installed with dependencies)
-
-### Installation
-
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-2. **Create your D1 database:**
-   ```bash
-   npx wrangler d1 create my-sonicjs-db
-   ```
-
-   Copy the `database_id` from the output and update it in `wrangler.toml`.
-
-3. **Create your R2 bucket:**
-   ```bash
-   npx wrangler r2 bucket create my-sonicjs-media
-   ```
-
-4. **Run migrations:**
-   ```bash
-   npm run db:migrate:local
-   ```
-
-5. **Start the development server:**
-   ```bash
-   npm run dev
-   ```
-
-6. **Open your browser:**
-   Navigate to `http://localhost:8787/admin` to access the admin interface.
-
-   Default credentials:
-   - Email: `admin@sonicjs.com`
-   - Password: `admin`
-
-## Project Structure
-
-```
-my-sonicjs-app/
-├── src/
-│   ├── collections/          # Your content type definitions
-│   │   └── blog-posts.collection.ts
-│   └── index.ts             # Application entry point
-├── wrangler.toml            # Cloudflare Workers configuration
-├── package.json
-└── tsconfig.json
+```bash
+npm install
+npx wrangler d1 migrations apply DB --local   # 本地库
+npx wrangler dev
+npx wrangler deploy                           # 生产（不自动跑远程 migration）
+npx wrangler d1 migrations apply DB --remote  # 仅在需要改表结构时
 ```
 
-## Available Scripts
+## 必须密钥（Secrets）
 
-- `npm run dev` - Start development server
-- `npm run deploy` - Deploy to Cloudflare
-- `npm run db:migrate` - Run migrations on production database
-- `npm run db:migrate:local` - Run migrations locally
-- `npm run type-check` - Check TypeScript types
-- `npm run test` - Run tests
-
-## Creating Collections
-
-Collections define your content types. Create a new file in `src/collections/`:
-
-```typescript
-// src/collections/products.collection.ts
-import type { CollectionConfig } from '@sonicjs-cms/core'
-
-export default {
-  name: 'products',
-  label: 'Products',
-  fields: {
-    name: { type: 'text', required: true },
-    price: { type: 'number', required: true },
-    description: { type: 'markdown' }
-  }
-} satisfies CollectionConfig
+```bash
+npx wrangler secret put JWT_SECRET
+npx wrangler secret put BETTER_AUTH_SECRET
+# 可选
+npx wrangler secret put INDEXNOW_KEY
 ```
 
-## API Access
+## 入口
 
-Your collections are automatically available via REST API:
+- Worker 入口：`src/entrypoint.ts`
+- CMS + SEO：`src/index.ts`
+- 城市/文章/搜索等：`src/seo/`
+- 内容模型：`src/collections/`
 
-- `GET /api/content/blog-posts` - List all blog posts
-- `GET /api/content/blog-posts/:id` - Get a single post
-- `POST /api/content/blog-posts` - Create a post (requires auth)
-- `PUT /api/content/blog-posts/:id` - Update a post (requires auth)
-- `DELETE /api/content/blog-posts/:id` - Delete a post (requires auth)
+## 配置
 
-## Deployment
-
-1. **Login to Cloudflare:**
-   ```bash
-   npx wrangler login
-   ```
-
-2. **Deploy your application:**
-   ```bash
-   npm run deploy
-   ```
-
-3. **Run migrations on production:**
-   ```bash
-   npm run db:migrate
-   ```
-
-## Documentation
-
-- [SonicJS Documentation](https://docs.sonicjs.com)
-- [Collection Configuration](https://docs.sonicjs.com/collections)
-- [Plugin Development](https://docs.sonicjs.com/plugins)
-- [API Reference](https://docs.sonicjs.com/api)
-
-## Support
-
-- [GitHub Issues](https://github.com/sonicjs/sonicjs/issues)
-- [Discord Community](https://discord.gg/sonicjs)
-- [Documentation](https://docs.sonicjs.com)
-
-## License
-
-MIT
+见 `wrangler.toml`（D1 / R2 / SITE_URL 等）。本地生成的 `wrangler.production.toml` 勿提交。
