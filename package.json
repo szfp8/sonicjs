@@ -5,9 +5,8 @@
   "description": "全国财税发票 SEO — Cloudflare Workers + D1 + R2 + KV",
   "type": "module",
   "scripts": {
-    "build": "echo ready",
+    "build": "npm run type-check",
     "deploy": "node scripts/cf-deploy.mjs",
-    "cf:setup": "node scripts/cf-setup.mjs",
     "db:schema": "wrangler d1 migrations apply DB --remote --yes",
     "type-check": "tsc --noEmit"
   },
