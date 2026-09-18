@@ -20,6 +20,16 @@ const runNpm = (args, opts = {}) => {
   execFileSync(npm, args, { cwd: appDir, stdio: 'inherit', shell: false, ...opts });
 };
 
+const putSecret = (name, value) => {
+  console.log(`\n配置密钥：${name}`);
+  execFileSync(npx, ['wrangler', 'secret', 'put', name, '--config', configPath], {
+    cwd: appDir,
+    input: `${value}\n`,
+    stdio: ['pipe', 'inherit', 'inherit'],
+    shell: false,
+  });
+};
+
 const rl = createInterface({ input, output });
 const ask = async (question, fallback = '') => {
   const answer = (await rl.question(`${question}${fallback ? ` [${fallback}]` : ''}: `)).trim();
@@ -70,17 +80,14 @@ try {
   console.log('\n安装应用目录依赖...');
   runNpm(['install']);
 
-  console.log('\n配置 Better Auth 密钥...');
+  // Critical: both secrets are required for login / CSRF / admin access.
   const authSecret = randomBytes(32).toString('base64url');
-  execFileSync(npx, ['wrangler', 'secret', 'put', 'BETTER_AUTH_SECRET', '--config', configPath], {
-    cwd: appDir, input: `${authSecret}\n`, stdio: ['pipe', 'inherit', 'inherit'], shell: false,
-  });
-
-  console.log('\n配置 IndexNow 密钥...');
+  const jwtSecret = randomBytes(32).toString('base64url');
   const indexNowKey = randomBytes(16).toString('hex');
-  execFileSync(npx, ['wrangler', 'secret', 'put', 'INDEXNOW_KEY', '--config', configPath], {
-    cwd: appDir, input: `${indexNowKey}\n`, stdio: ['pipe', 'inherit', 'inherit'], shell: false,
-  });
+
+  putSecret('BETTER_AUTH_SECRET', authSecret);
+  putSecret('JWT_SECRET', jwtSecret);
+  putSecret('INDEXNOW_KEY', indexNowKey);
 
   console.log('\n部署 Worker（不会执行 D1 migration）...');
   runNpx(['wrangler', 'deploy', '--config', configPath]);
@@ -93,6 +100,10 @@ try {
   console.log('SEO：/robots.txt  /sitemap.xml  /news  /search  /contact');
   console.log('文章：/article/<slug>');
   console.log('城市：/city/<city-name>');
+  console.log('');
+  console.log('已自动写入密钥：BETTER_AUTH_SECRET / JWT_SECRET / INDEXNOW_KEY');
+  console.log('若仍无法登录后台：打开 /auth/register 注册第一个用户，');
+  console.log('系统会自动把首个用户提升为管理员。');
   console.log('D1：只读取信息，没有自动执行 migration。');
 } catch (error) {
   console.error('\n部署失败：');
