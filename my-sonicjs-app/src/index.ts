@@ -176,19 +176,44 @@ async function localizeAdminResponse(request: Request, response: Response): Prom
   return new Response(localizedHtml, { status: response.status, statusText: response.statusText, headers });
 }
 
+/**
+ * Ensure at least one administrator exists.
+ *
+ * - When there is exactly one user, promote that user to admin/super-admin.
+ * - When there are multiple users but zero admins, promote the earliest user.
+ * This repairs partial registration failures and missing role assignment.
+ */
 async function ensureBootstrapAdmin(db: D1Database): Promise<void> {
   try {
-    const countRow = await db.prepare('SELECT COUNT(*) AS count FROM auth_user').first<{ count: number | string }>();
+    const countRow = await db
+      .prepare('SELECT COUNT(*) AS count FROM auth_user')
+      .first<{ count: number | string }>();
     const userCount = Number(countRow?.count ?? 0);
-    if (userCount !== 1) return;
+    if (userCount < 1) return;
 
-    const user = await db.prepare('SELECT id, role, is_super_admin FROM auth_user ORDER BY created_at ASC LIMIT 1').first<{ id: string; role: string; is_super_admin: number }>();
+    const adminRow = await db
+      .prepare(
+        "SELECT COUNT(*) AS count FROM auth_user WHERE role = 'admin' OR is_super_admin = 1"
+      )
+      .first<{ count: number | string }>();
+    const adminCount = Number(adminRow?.count ?? 0);
+    if (adminCount > 0) return;
+
+    const user = await db
+      .prepare(
+        'SELECT id, role, is_super_admin FROM auth_user ORDER BY created_at ASC LIMIT 1'
+      )
+      .first<{ id: string; role: string; is_super_admin: number }>();
     if (!user) return;
 
-    if (user.role !== 'admin' || Number(user.is_super_admin) !== 1) {
-      await db.prepare("UPDATE auth_user SET role = 'admin', is_super_admin = 1, updated_at = ? WHERE id = ?").bind(Date.now(), user.id).run();
-      console.log('[Bootstrap] Promoted the first registered user to administrator.');
-    }
+    await db
+      .prepare(
+        "UPDATE auth_user SET role = 'admin', is_super_admin = 1, updated_at = ? WHERE id = ?"
+      )
+      .bind(Date.now(), user.id)
+      .run();
+
+    console.log('[Bootstrap] Promoted the earliest user to administrator (no admin existed).');
   } catch (error) {
     console.warn('[Bootstrap] First-user admin repair skipped:', error);
   }
