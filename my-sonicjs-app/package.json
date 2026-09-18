@@ -2,29 +2,23 @@
   "name": "my-sonicjs-app",
   "version": "1.0.0",
   "private": true,
-  "description": "全国财税发票 SEO 网站 - Cloudflare Workers + D1 + R2",
+  "description": "全国财税发票 SEO - Cloudflare Workers 一键部署",
   "type": "module",
   "scripts": {
     "build": "echo Cloudflare Workers build ready",
     "deploy": "npx wrangler deploy",
     "db:migrate": "npx wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "npx wrangler d1 migrations apply DB --remote",
-    "type-check": "tsc --noEmit",
-    "test": "vitest --run"
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@sonicjs-cms/core": "3.0.0-beta.28"
+    "@sonicjs-cms/core": "3.0.0-beta.28",
+    "wrangler": "^4.133.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260724.1",
     "@types/node": "^24.9.2",
-    "drizzle-kit": "^0.31.2",
-    "drizzle-orm": "^0.45.2",
-    "hono": "^4.12.26",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.9",
-    "wrangler": "^4.133.0",
-    "zod": "^4.1.12"
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=20.0.0"
