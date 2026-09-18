@@ -1,60 +1,82 @@
-# 全国财税发票 SEO（SonicJS + Cloudflare）
+# 全国财税发票 SEO
+
+基于 **SonicJS**（`@sonicjs-cms/core`）+ Cloudflare Workers。
 
 仓库：https://github.com/szfp8/sonicjs
 
 ---
 
-## 空白 Cloudflare 一键部署
+## 1. D1 / R2 / KV 与 SonicJS 的对应关系
+
+这些资源是 **SonicJS 框架要求的绑定**，不是本站随意命名。`wrangler.toml` 与官方一致：
+
+| Cloudflare 资源 | 绑定名（代码里 `env.xxx`） | 官方用途 | 本站用途 |
+|-----------------|---------------------------|----------|----------|
+| **D1** | `DB` | 用户、会话、内容文档、插件状态 | 注册登录、文章、城市页、首页设置 |
+| **R2** | `MEDIA_BUCKET` | 媒体上传存储 | 后台媒体库图片/文件 |
+| **KV** | `CACHE_KV` | 边缘缓存 | 加速内容读取 |
+
+部署脚本 `npm run deploy` 会在**当前 CF 账号新建**（或复用同名）：
+
+- D1 库名：`sonicjs`
+- R2 桶名：`sonicjs-media`（变量 `BUCKET_NAME` 同名）
+- KV 标题：`CACHE_KV`
+
+> 绑定名 `DB` / `MEDIA_BUCKET` / `CACHE_KV` **不能改**，否则 SonicJS 后台与上传会失效。
+
+---
+
+## 2. 空白 CF 一键部署
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/szfp8/sonicjs)
 
-或：**Workers & Pages → Create → Connect to Git** → `szfp8/sonicjs` / 分支 `main`：
+或 Connect to Git → `szfp8/sonicjs` / `main`：
 
 | 项 | 值 |
 |----|-----|
 | Root directory | **留空** |
 | Build command | `npm run build` |
-| **Deploy command** | **`npm run deploy`**（必须） |
+| **Deploy command** | **`npm run deploy`** |
 | Worker name | `sonicjs` |
 | Custom domain | **留空** |
 
-### 部署时自动完成（全新账号）
+自动流程：新建 D1+R2+KV → 发布 Worker → 空库建表 → 写入 `JWT_SECRET` / `BETTER_AUTH_SECRET`。
 
-`npm run deploy`（`scripts/cf-deploy.mjs`）会：
-
-1. **新建** D1 数据库 `sonicjs`（SonicJS 标准绑定名 `DB`）
-2. **新建** R2 桶 `sonicjs-media`（绑定 `MEDIA_BUCKET`）
-3. **新建** KV `CACHE_KV`（绑定 `CACHE_KV`）
-4. 发布 Worker 并绑定以上资源
-5. 对空 D1 **建表**（auth / 内容表，不是搬旧数据）
-6. 写入 Secret：`JWT_SECRET`、`BETTER_AUTH_SECRET`、`INDEXNOW_KEY`（已有则跳过）
-
-密钥**不要**写进 `wrangler.toml`。
+部署后：`/status` → `/auth/register` → `/auth/login` → `/admin`。
 
 ---
 
-## 部署后
+## 3. 后台可以改前台什么
 
-1. 打开 `https://你的域名/status`  
-   期望：`ok: true`，`DB` / `migrated` / `JWT_SECRET` 均为 true
-2. **注册**：`/auth/register`（First Name / Last Name / Email / Password）
-3. **登录**：`/auth/login` → `/admin`
-4. 前台：`/`
+登录 `/admin` 后，**无需改代码**即可管理前台展示内容：
 
-### 登录注册说明
+| 前台效果 | 后台入口 |
+|----------|----------|
+| 首页标题、介绍、导航文案、模块开关 | **网站设置** → `/admin/settings/general`（首页设置表单） |
+| 政策解读列表/详情 | 内容 → **政策解读 / SEO资讯** → 发布 |
+| 微信文章列表/详情 | 内容 → **微信文章** → 发布 |
+| 城市页自定义正文 | 内容 → **SEO城市页面**（城市名与 `/city/北京` 一致）→ 发布 |
+| 普通资讯 | 内容 → **网站资讯** |
+| 图片/附件 | **媒体**（写入 R2 `MEDIA_BUCKET`） |
+| SEO 标题/关键词、获客电话微信 | 网站设置 → SEO / 获客面板 |
 
-- 已禁用 Better Auth **organization** 多租户插件（本站不需要），避免 `tenant_id` / `tenantId` schema 校验拦截登录。
-- 第一个注册用户会被提升为管理员（`role=admin` + `is_super_admin=1`）。
+前台路由：`/`、`/news`、`/wechat`、`/city/{城市}`、`/contact`、`/search`。
+
+> 页面**布局/模板代码**仍在仓库 `src/seo/*`；改布局需改代码并重新部署。文案与文章内容全部可在后台改。
 
 ---
 
-## 前台 / 后台路径
+## 4. 部署与更新
 
-| 前台 | 路径 | 后台 | 路径 |
-|------|------|------|------|
-| 首页 | `/` | 注册 | `/auth/register` |
-| 政策 | `/news` | 登录 | `/auth/login` |
-| 微信 | `/wechat` | 后台 | `/admin` |
-| 城市 | `/city/北京` | 首页设置 | `/admin/settings/general` |
-| 咨询 | `/contact` | 城市正文 | `/admin/content?model=seo_city_page` |
-| 状态 | `/status` | 微信文章 | `/admin/content?model=wechat_article` |
+| 场景 | 做法 |
+|------|------|
+| 首次空白 CF | 一键 Deploy / Connect Git + `npm run deploy` |
+| 更新代码 | 推送 `main`，CF 自动再部署 |
+| 只改文章/首页文案 | 后台发布即可，**不必**重新部署 |
+| 改模板/样式 | 改 GitHub 代码后重新部署 |
+
+---
+
+## 5. 密钥
+
+`JWT_SECRET`、`BETTER_AUTH_SECRET`：仅 Cloudflare **Secret**，或由部署脚本自动生成。不要写进 `wrangler.toml` / Git。

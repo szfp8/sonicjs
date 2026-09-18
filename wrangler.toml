@@ -1,13 +1,16 @@
-# GitHub → Cloudflare Workers Builds
-# 部署命令必须是：npm run deploy
-# Root directory：留空
+# =============================================================================
+# SonicJS 官方绑定（必须与 @sonicjs-cms/core 一致）
+# 文档: https://sonicjs.com/blog/deploy-sonicjs-to-cloudflare-workers
 #
-# 密钥说明（重要）：
-#   JWT_SECRET / BETTER_AUTH_SECRET / INDEXNOW_KEY
-#   → 只能在 Cloudflare 控制台添加为「Secret」
-#   → 或由 npm run deploy 自动写入 Secret
-#   → 禁止写进本文件，也禁止提交到 Git
-#   → 控制台若提示「更新 Wrangler 配置」：对 Secret 忽略即可，不要把密钥贴进 toml
+# | 资源 | binding 名称（不可改） | 用途              |
+# |------|------------------------|-------------------|
+# | D1   | DB                     | 用户/内容/设置库  |
+# | R2   | MEDIA_BUCKET           | 媒体上传          |
+# | KV   | CACHE_KV               | 边缘缓存          |
+#
+# GitHub 一键部署：Deploy command = npm run deploy；Root 留空
+# 密钥 JWT_SECRET / BETTER_AUTH_SECRET 仅用 CF Secret，禁止写进本文件
+# =============================================================================
 
 name = "sonicjs"
 main = "src/entrypoint.ts"
@@ -16,15 +19,18 @@ compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 preview_urls = false
 
+# ── D1（SonicJS 主库）────────────────────────────────────────────────────────
 [[d1_databases]]
 binding = "DB"
 database_name = "sonicjs"
 migrations_dir = "migrations"
 
+# ── R2（媒体库，绑定名必须为 MEDIA_BUCKET）───────────────────────────────────
 [[r2_buckets]]
 binding = "MEDIA_BUCKET"
 bucket_name = "sonicjs-media"
 
+# ── KV（缓存，绑定名必须为 CACHE_KV）─────────────────────────────────────────
 [[kv_namespaces]]
 binding = "CACHE_KV"
 
@@ -35,6 +41,8 @@ SITE_URL = ""
 BETTER_AUTH_URL = ""
 CONTACT_PHONE = ""
 CORS_ORIGINS = "*"
+# SonicJS 媒体 URL 会读 BUCKET_NAME，需与上面 R2 bucket_name 一致
+BUCKET_NAME = "sonicjs-media"
 
 [triggers]
 crons = ["*/10 * * * *"]
