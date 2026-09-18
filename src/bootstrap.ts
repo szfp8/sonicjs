@@ -9,7 +9,6 @@ type D1Statement = {
 export type D1Like = {
   prepare: (sql: string) => D1Statement;
   exec?: (sql: string) => Promise<unknown>;
-  batch?: (statements: D1Statement[]) => Promise<unknown>;
 };
 
 function randomSecret(): string {
@@ -20,7 +19,6 @@ function randomSecret(): string {
   return out;
 }
 
-/** Split migration SQL into single executable statements (D1 is unreliable with multi-statement exec). */
 function splitStatements(sql: string): string[] {
   return sql
     .split(';')
@@ -41,7 +39,7 @@ async function runSql(db: D1Like, sql: string): Promise<void> {
     await db.prepare(text).run();
   } catch (error) {
     const message = String((error as Error)?.message || error);
-    // Fallback: some runtimes prefer exec for multi-line DDL
+    if (/duplicate column|already exists/i.test(message)) return;
     if (db.exec) {
       try {
         await db.exec(text);
@@ -52,10 +50,83 @@ async function runSql(db: D1Like, sql: string): Promise<void> {
         throw error2;
       }
     }
-    if (/duplicate column|already exists/i.test(message)) return;
     throw error;
   }
 }
+
+/** Minimal auth schema so /auth/register works even if full migrations failed. */
+const MINIMAL_AUTH_SQL = `
+CREATE TABLE IF NOT EXISTS auth_user (
+  id TEXT PRIMARY KEY,
+  name TEXT,
+  email TEXT NOT NULL UNIQUE,
+  email_verified INTEGER NOT NULL DEFAULT 0,
+  image TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  first_name TEXT NOT NULL DEFAULT '',
+  last_name TEXT NOT NULL DEFAULT '',
+  role TEXT NOT NULL DEFAULT 'viewer',
+  is_super_admin INTEGER NOT NULL DEFAULT 0,
+  avatar TEXT,
+  password_hash TEXT,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  last_login_at INTEGER,
+  phone TEXT,
+  bio TEXT,
+  timezone TEXT DEFAULT 'UTC',
+  language TEXT DEFAULT 'en',
+  email_notifications INTEGER DEFAULT 1,
+  theme TEXT DEFAULT 'dark',
+  password_reset_token TEXT,
+  password_reset_expires INTEGER,
+  invitation_token TEXT,
+  invited_by TEXT,
+  invited_at INTEGER,
+  accepted_invitation_at INTEGER,
+  failed_login_count INTEGER NOT NULL DEFAULT 0,
+  locked_until INTEGER,
+  two_factor_enabled INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_auth_user_email ON auth_user(email);
+CREATE TABLE IF NOT EXISTS auth_session (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES auth_user(id) ON DELETE CASCADE,
+  token TEXT NOT NULL UNIQUE,
+  expires_at INTEGER NOT NULL,
+  ip_address TEXT,
+  user_agent TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  active_organization_id TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_auth_session_user_id ON auth_session(user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_session_token ON auth_session(token);
+CREATE TABLE IF NOT EXISTS auth_account (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES auth_user(id) ON DELETE CASCADE,
+  account_id TEXT NOT NULL,
+  provider_id TEXT NOT NULL,
+  access_token TEXT,
+  refresh_token TEXT,
+  access_token_expires_at INTEGER,
+  refresh_token_expires_at INTEGER,
+  scope TEXT,
+  id_token TEXT,
+  password TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_auth_account_user_id ON auth_account(user_id);
+CREATE TABLE IF NOT EXISTS auth_verification (
+  id TEXT PRIMARY KEY,
+  identifier TEXT NOT NULL,
+  value TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+`;
 
 export async function bootstrapDatabase(db: D1Like): Promise<{ ok: boolean; error?: string }> {
   try {
@@ -74,6 +145,15 @@ export async function bootstrapDatabase(db: D1Like): Promise<{ ok: boolean; erro
       )`,
     );
 
+    // Always ensure minimal auth tables first (register depends on these)
+    for (const stmt of splitStatements(MINIMAL_AUTH_SQL)) {
+      try {
+        await runSql(db, stmt);
+      } catch (error) {
+        console.warn('[bootstrap] minimal auth:', String((error as Error)?.message || error).slice(0, 200));
+      }
+    }
+
     for (const migration of SCHEMA_MIGRATIONS) {
       const done = await db
         .prepare('SELECT id FROM schema_bootstrap WHERE id = ?')
@@ -81,15 +161,13 @@ export async function bootstrapDatabase(db: D1Like): Promise<{ ok: boolean; erro
         .first();
       if (done) continue;
 
-      const statements = splitStatements(migration.sql);
-      for (const stmt of statements) {
+      for (const stmt of splitStatements(migration.sql)) {
         try {
           await runSql(db, stmt);
         } catch (error) {
           const message = String((error as Error)?.message || error);
           if (/duplicate column|already exists/i.test(message)) continue;
-          console.warn(`[bootstrap] ${migration.id} stmt failed:`, message.slice(0, 200));
-          // Continue other statements so partial schema still helps register
+          console.warn(`[bootstrap] ${migration.id}:`, message.slice(0, 200));
         }
       }
 
@@ -99,15 +177,10 @@ export async function bootstrapDatabase(db: D1Like): Promise<{ ok: boolean; erro
         .run();
     }
 
-    // Better Auth sign-up often omits first/last name; avoid NOT NULL failures on legacy tables.
-    // SQLite cannot ALTER DEFAULT easily — insert path should still work if columns accept empty string.
-    // Ensure table exists:
     const row = await db
       .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='auth_user'")
       .first();
-    if (!row) {
-      return { ok: false, error: 'auth_user table missing after bootstrap' };
-    }
+    if (!row) return { ok: false, error: 'auth_user still missing' };
     return { ok: true };
   } catch (error) {
     const message = String((error as Error)?.message || error);
@@ -147,11 +220,10 @@ export async function ensureAuthSecrets<T extends Record<string, unknown>>(
         next[name] = saved?.value || value;
         continue;
       } catch {
-        // fall through to in-memory secret for this request
+        /* fall through */
       }
     }
 
-    // Last resort so register/login can work before CF Secrets are set
     next[name] = randomSecret();
   }
   return next;
