@@ -1,5 +1,13 @@
 # GitHub → Cloudflare Workers Builds
-# 一键部署：Deploy command = npm run deploy；Root 留空
+# 部署命令必须是：npm run deploy
+# Root directory：留空
+#
+# 密钥说明（重要）：
+#   JWT_SECRET / BETTER_AUTH_SECRET / INDEXNOW_KEY
+#   → 只能在 Cloudflare 控制台添加为「Secret」
+#   → 或由 npm run deploy 自动写入 Secret
+#   → 禁止写进本文件，也禁止提交到 Git
+#   → 控制台若提示「更新 Wrangler 配置」：对 Secret 忽略即可，不要把密钥贴进 toml
 
 name = "sonicjs"
 main = "src/entrypoint.ts"
@@ -26,7 +34,6 @@ SITE_NAME = "全国财税发票服务"
 SITE_URL = ""
 BETTER_AUTH_URL = ""
 CONTACT_PHONE = ""
-# 允许本站前后端同源；部署后可在 CF 改成你的 workers.dev 完整地址
 CORS_ORIGINS = "*"
 
 [triggers]
