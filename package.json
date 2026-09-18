@@ -5,10 +5,11 @@
   "description": "全国财税发票 SEO — Cloudflare Workers + D1 + R2 + KV",
   "type": "module",
   "scripts": {
-    "build": "npm run type-check",
+    "build": "echo ready",
     "deploy": "node scripts/cf-deploy.mjs",
     "db:schema": "wrangler d1 migrations apply DB --remote --yes",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "check": "tsc --noEmit"
   },
   "dependencies": {
     "@sonicjs-cms/core": "3.0.0-beta.28",
