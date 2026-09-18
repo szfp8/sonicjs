@@ -20,34 +20,46 @@ export const languageSettings = {
   queryParam: 'lang',
 };
 
+function isLanguageCode(value: string): value is LanguageCode {
+  return value in supportedLanguages;
+}
+
 /**
  * Detect language from URL query, cookie, then Accept-Language.
  */
 export function detectLanguage(request: Request): LanguageCode {
-  const url = new URL(request.url);
-  const fromQuery = url.searchParams.get(languageSettings.queryParam)?.toLowerCase().slice(0, 2);
-  if (fromQuery && fromQuery in supportedLanguages) {
-    return fromQuery as LanguageCode;
-  }
+  try {
+    const url = new URL(request.url);
+    const fromQuery = (url.searchParams.get(languageSettings.queryParam) || '')
+      .toLowerCase()
+      .slice(0, 2);
+    if (fromQuery && isLanguageCode(fromQuery)) {
+      return fromQuery;
+    }
 
-  const cookie = request.headers.get('cookie') || '';
-  const match = cookie.match(new RegExp(`(?:^|;\\s*)${languageSettings.cookieName}=([a-z]{2})`));
-  if (match?.[1] && match[1] in supportedLanguages) {
-    return match[1] as LanguageCode;
-  }
-
-  if (languageSettings.autoDetect) {
-    const header = request.headers.get('accept-language') || '';
-    const languages = header
-      .split(',')
-      .map((item) => item.split(';')[0].trim().toLowerCase());
-
-    for (const language of languages) {
-      const code = language.slice(0, 2) as LanguageCode;
-      if (code in supportedLanguages) {
-        return code;
+    const cookie = request.headers.get('cookie') || '';
+    const parts = cookie.split(';');
+    for (const part of parts) {
+      const [rawKey, ...rest] = part.trim().split('=');
+      if (rawKey === languageSettings.cookieName) {
+        const value = (rest.join('=') || '').toLowerCase().slice(0, 2);
+        if (isLanguageCode(value)) return value;
       }
     }
+
+    if (languageSettings.autoDetect) {
+      const header = request.headers.get('accept-language') || '';
+      const languages = header
+        .split(',')
+        .map((item) => item.split(';')[0].trim().toLowerCase());
+
+      for (const language of languages) {
+        const code = language.slice(0, 2);
+        if (isLanguageCode(code)) return code;
+      }
+    }
+  } catch {
+    /* ignore and fall back */
   }
 
   return defaultLanguage;
