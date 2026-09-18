@@ -22,6 +22,7 @@ import {
 } from '@sonicjs-cms/core';
 import type { D1Database } from '@cloudflare/workers-types';
 import './user-profile.model';
+import './admin-beginner-ui';
 
 import blogPostsCollection from './collections/blog-posts.collection';
 import seoArticlesCollection from './collections/seo-articles.collection';
@@ -41,10 +42,6 @@ const config: SonicJSConfig = {
   auth: {
     extendBetterAuth: (opts: any) => ({
       ...opts,
-      // Better Auth's organization plugin expects field-mapping values to be
-      // Drizzle property keys, not raw SQL column names. SonicJS's tenant
-      // tables expose `tenantId` -> `tenant_id` through Drizzle, so keep the
-      // existing D1 schema and correct only the runtime mapping here.
       plugins: opts.plugins?.map((plugin: any) => {
         if (plugin?.id !== 'organization') return plugin;
         const schema = plugin.options?.schema ?? {};
@@ -77,11 +74,6 @@ const config: SonicJSConfig = {
     disableAll: false,
   },
   middleware: {
-    // A fresh bootstrap account can be marked super-admin in D1 before the
-    // authentication session has been refreshed. Read the authoritative D1
-    // flag here instead of depending on a possibly stale session snapshot.
-    // Then expose the complete live permission matrix to SonicJS for this
-    // bootstrap administrator.
     afterAuth: [async (c: any, next: any) => {
       const sessionUser = c.get('user') as { userId?: string } | undefined;
       const userId = sessionUser?.userId;
@@ -130,14 +122,6 @@ const coreScheduled = createScheduledHandler({
 const schedules = collectCronSchedules(allCronPlugins);
 if (schedules.length > 0) console.log('[cron] Declared schedules:', schedules.join(', '));
 
-/**
- * Chinese localization for the SonicJS admin UI.
- *
- * SonicJS currently renders the admin as server-side HTML without a locale
- * bundle. This compatibility layer translates the visible admin UI while
- * keeping the core framework and stored content unchanged. A MutationObserver
- * also translates HTMX/AJAX-rendered fragments after navigation.
- */
 async function localizeAdminResponse(request: Request, response: Response): Promise<Response> {
   const pathname = new URL(request.url).pathname;
   const contentType = response.headers.get('content-type') || '';
@@ -179,13 +163,6 @@ async function localizeAdminResponse(request: Request, response: Response): Prom
   return new Response(localizedHtml, { status: response.status, statusText: response.statusText, headers });
 }
 
-/**
- * Ensure at least one administrator exists.
- *
- * - When there is exactly one user, promote that user to admin/super-admin.
- * - When there are multiple users but zero admins, promote the earliest user.
- * This repairs partial registration failures and missing role assignment.
- */
 async function ensureBootstrapAdmin(db: D1Database): Promise<void> {
   try {
     const countRow = await db
