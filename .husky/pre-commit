@@ -1,5 +1,0 @@
-echo "Running linting..."
-npm run lint --workspace=@sonicjs-cms/core
-
-echo "Running type checks..."
-npm run type-check

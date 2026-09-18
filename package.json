@@ -1,19 +1,27 @@
 {
-  "name": "szfp8-tax-seo",
+  "name": "sonicjs",
   "version": "1.0.0",
   "private": true,
-  "description": "全国财税发票 SEO 网站 - Cloudflare Workers + D1 + R2",
+  "description": "\u5168\u56fd\u8d22\u7a0e\u53d1\u7968 SEO \u2014 Cloudflare Workers + D1 + R2 + KV",
   "type": "module",
   "scripts": {
-    "setup": "node scripts/cloudflare/setup.mjs",
-    "build": "npm run build --workspace=my-sonicjs-app",
-    "deploy": "npm run deploy --workspace=my-sonicjs-app",
-    "db:migrate:remote": "npm run db:migrate:remote --workspace=my-sonicjs-app",
-    "type-check": "npm run type-check --workspace=my-sonicjs-app"
+    "build": "node scripts/cf-setup.mjs",
+    "deploy": "wrangler deploy",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "type-check": "tsc --noEmit"
   },
-  "workspaces": [
-    "my-sonicjs-app"
-  ],
+  "dependencies": {
+    "@sonicjs-cms/core": "3.0.0-beta.28",
+    "drizzle-orm": "^0.44.7",
+    "hono": "^4.10.7",
+    "zod": "^4.1.13",
+    "wrangler": "^4.134.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260724.1",
+    "@types/node": "^24.9.2",
+    "typescript": "^5.9.3"
+  },
   "engines": {
     "node": ">=20.0.0"
   }

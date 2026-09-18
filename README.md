@@ -1,73 +1,59 @@
-# 全国财税发票 SEO（szfp8）
+# 全国财税发票 SEO
 
-Cloudflare Workers + D1 + R2。**只需连接 GitHub，在 Cloudflare 里一键部署。**
+Cloudflare Workers + D1 + R2 + KV。**连接 GitHub 即可部署。**
 
-不需要本地电脑、不需要域名、不需要本机安装 Node。
+仓库：https://github.com/szfp8/sonicjs
 
-**仓库：** https://github.com/szfp8/sonicjs
+不绑定自定义域名，使用 `*.workers.dev`。
 
 ---
 
-## 一键部署（全新 Cloudflare 账号）
+## 已经连上 Cloudflare 时
 
-### 只做这几步
+当前 Worker 名称是 **`sonicjs`**。把代码推送到 `main` 就会自动重新部署。
 
-1. 打开 [Cloudflare Dashboard](https://dash.cloudflare.com/) → **Workers & Pages**
-2. **Create** → 选择 **Connect to Git**（连接 GitHub）
-3. 授权 GitHub，选择仓库 **`szfp8/sonicjs`**
-4. 构建设置填：
+不要改 Root directory（仓库根目录）。域名留空。
 
-| 项 | 值 |
-|----|-----|
+| Cloudflare 构建设置 | 值 |
+|---|---|
 | 分支 | `main` |
-| **Root directory** | **`my-sonicjs-app`** |
+| Root directory | **留空** |
 | 构建命令 | `npm run build` |
 | 部署命令 | `npx wrangler deploy` |
+| 域名 | **留空** |
 
-5. **域名 / Custom Domain：留空**
-6. 点 **Save and Deploy**
+`npm run build` 会在 Cloudflare 上自动：
 
-部署成功后，在 Worker 页面复制 **`*.workers.dev`** 地址即可访问。
+1. 创建 D1 数据库 `sonicjs`（后台 / 登录用）
+2. 创建 R2 存储桶 `sonicjs-media`（媒体）
+3. 创建 KV `CACHE_KV`（缓存和密钥兜底）
+4. 执行数据库迁移
+5. 写入 `JWT_SECRET` / `BETTER_AUTH_SECRET`（没有才写，不会每次覆盖）
 
-之后每次推送 `main`，Cloudflare 会自动重新部署。
-
----
-
-## 部署成功后（只需一次）
-
-### 1. 添加数据库与存储（控制台）
-
-Worker → **Settings** → **Bindings**：
-
-| 类型 | 变量名 | 操作 |
-|------|--------|------|
-| D1 | `DB` | 新建数据库，名称随意（如 `szfp8-tax-seo-db`） |
-| R2 | `MEDIA_BUCKET` | 新建 Bucket（如 `szfp8-tax-seo-media`） |
-
-保存后可再点一次 **Deploy**（或等下次 git 推送）。
-
-### 2. 添加 Secrets（控制台）
-
-Worker → **Settings** → **Variables and Secrets** → **Secrets**：
-
-| 名称 | 值 |
-|------|-----|
-| `JWT_SECRET` | 随便一长串随机字符 |
-| `BETTER_AUTH_SECRET` | 另一串随机字符 |
-
-### 3. 注册管理员
-
-浏览器打开：`https://你的.workers.dev/auth/register`  
-注册第一个用户 → `/auth/login` → `/admin`
+然后 `npx wrangler deploy` 把 Worker 发布出去。
 
 ---
 
-## 说明
+## 全新 Cloudflare 账号第一次连接
 
-- **域名绑定：留空**（先用 workers.dev）
-- 代码在 GitHub，构建在 Cloudflare，不在本地部署
-- 不要把密码写进仓库
+1. 打开 [Cloudflare Dashboard](https://dash.cloudflare.com/) → **Workers & Pages**
+2. **Create** → **Connect to Git** → 选择 **`szfp8/sonicjs`**
+3. Worker 名称填 **`sonicjs`**
+4. Root directory **留空**
+5. 构建命令 `npm run build`，部署命令 `npx wrangler deploy`
+6. 域名留空
+7. Save and Deploy
 
-### 常用路径
+部署成功后打开：
 
-`/` · `/city/北京` · `/news` · `/admin` · `/auth/login`
+- 前台：`https://sonicjs.<你的子域>.workers.dev/`
+- 状态：`/status`
+- 注册管理员：`/auth/register`
+- 登录：`/auth/login`
+- 后台：`/admin`
+
+---
+
+## 常用路径
+
+`/` · `/city/北京` · `/news` · `/admin` · `/auth/login` · `/status`
