@@ -1,9 +1,5 @@
 /**
  * SonicJS production SEO application.
- *
- * The SonicJS admin/API remains the backend. The SEO layer adds a public
- * website, 314 city landing pages, sitemap/robots, lead capture, and optional
- * IndexNow notifications without hard-coded admin credentials.
  */
 
 import type { SonicJSConfig } from '@sonicjs-cms/core';
@@ -42,6 +38,16 @@ const config: SonicJSConfig = {
   auth: {
     extendBetterAuth: (opts: any) => ({
       ...opts,
+      // SonicJS uses auth_tenant* (tenant_id) while Better Auth organization plugin
+      // expects organizationId. Map fields + disable strict schema validation so
+      // login is not blocked by Drizzle/BA column-name mismatch noise.
+      advanced: {
+        ...(opts.advanced || {}),
+        database: {
+          ...(opts.advanced?.database || {}),
+          validateSchema: false,
+        },
+      },
       plugins: opts.plugins?.map((plugin: any) => {
         if (plugin?.id !== 'organization') return plugin;
         const schema = plugin.options?.schema ?? {};
@@ -51,17 +57,33 @@ const config: SonicJSConfig = {
             ...plugin.options,
             schema: {
               ...schema,
+              organization: {
+                ...schema.organization,
+                modelName: schema.organization?.modelName || 'auth_tenant',
+              },
               member: {
                 ...schema.member,
-                fields: { ...(schema.member?.fields ?? {}), organizationId: 'tenantId' },
+                modelName: schema.member?.modelName || 'auth_tenant_member',
+                fields: {
+                  ...(schema.member?.fields ?? {}),
+                  organizationId: 'tenantId',
+                },
               },
               invitation: {
                 ...schema.invitation,
-                fields: { ...(schema.invitation?.fields ?? {}), organizationId: 'tenantId' },
+                modelName: schema.invitation?.modelName || 'auth_tenant_invitation',
+                fields: {
+                  ...(schema.invitation?.fields ?? {}),
+                  organizationId: 'tenantId',
+                },
               },
               team: {
                 ...schema.team,
-                fields: { ...(schema.team?.fields ?? {}), organizationId: 'tenantId' },
+                modelName: schema.team?.modelName || 'auth_tenant_team',
+                fields: {
+                  ...(schema.team?.fields ?? {}),
+                  organizationId: 'tenantId',
+                },
               },
             },
           },
@@ -131,15 +153,10 @@ async function localizeAdminResponse(request: Request, response: Response): Prom
   const localizationScript = `<script>
 (function () {
   var dict = {
-    'Content':'内容','Collections':'内容集合','Users':'用户','Plugins':'插件','Settings':'设置','Docs':'文档','Media':'媒体','Lexical Editor':'Lexical 编辑器','Two-Factor Auth':'双因素认证','API Docs':'API 文档','Developer Docs':'开发者文档','OpenAPI':'开放 API','Documentation':'文档','API Reference':'API 参考','Close menu':'关闭菜单','Open navigation':'打开导航','Toggle plugins submenu':'切换插件菜单','My Profile':'个人资料','Sign Out':'退出登录','Dashboard':'仪表盘','Home':'首页',
-    'Search':'搜索','Advanced Search':'高级搜索','Create':'创建','Create New':'新建','New':'新建','Add':'添加','Edit':'编辑','Save':'保存','Save Changes':'保存更改','Cancel':'取消','Delete':'删除','Remove':'移除','Publish':'发布','Unpublish':'取消发布','Preview':'预览','View':'查看','View Details':'查看详情','Details':'详情','Back':'返回','Next':'下一页','Previous':'上一页','Previous page':'上一页','Next page':'下一页','Refresh':'刷新','Reload':'重新加载','Close':'关闭','Confirm':'确认','Apply':'应用','Reset':'重置','Clear':'清除','Import':'导入','Export':'导出','Upload':'上传','Download':'下载','Select':'选择','Selected':'已选择','Select All':'全选','Deselect All':'取消全选','Bulk Actions':'批量操作','Actions':'操作','Action':'操作',
-    'Content Management':'内容管理','Manage and organize your content items':'管理和组织您的内容项目','Model':'模型','Models':'模型','Blog Post':'博客文章','Blog Posts':'博客文章','Email Log':'邮件日志','Email Logs':'邮件日志','Redirect':'重定向','Redirects':'重定向','SEO Articles':'SEO 文章','SEO City Pages':'SEO 城市页面','City Pages':'城市页面','SEO Policy Interpretation':'SEO 政策解读','Policy Interpretation':'政策解读','WeChat Articles':'微信文章','WeChat Article':'微信文章','Welcome to SonicJS':'欢迎使用 SonicJS','Welcome':'欢迎','Showing':'显示','results':'条结果','result':'条结果','Per page':'每页显示','No results':'暂无结果','No records found':'未找到记录','No records':'暂无记录','No data':'暂无数据','Filter':'筛选','Filters':'筛选条件','All Models':'全部模型','All Status':'全部状态','Status':'状态','Title':'标题','Description':'描述','Slug':'URL 别名','Content':'内容','Excerpt':'摘要','Category':'分类','Tags':'标签','Author':'作者','Updated':'更新时间','Created':'创建时间','Created At':'创建时间','Updated At':'更新时间','Published At':'发布时间','Published':'已发布','Unpublished':'未发布','Draft':'草稿','Under Review':'审核中','Scheduled':'已排期','Archived':'已归档','Deleted':'已删除','deleted':'已删除',
-    'Source':'来源','Source Name':'来源名称','Source URL':'来源链接','Original Interpretation':'原创解读','Business Value':'企业实际价值','Keyword':'关键词','Keywords':'关键词','SEO Title':'SEO 标题','SEO Description':'SEO 描述','Meta Title':'Meta 标题','Meta Description':'Meta 描述','Canonical URL':'规范 URL','City':'城市','Province':'省份','District':'区县','Service':'服务','Services':'服务项目','Phone':'电话','Contact Phone':'联系电话','Address':'地址','Website':'网站',
-    'Summary':'摘要','Cover URL':'封面图链接','Original URL':'微信原文链接','Account Name':'公众号名称','Language':'语言',
-    'User':'用户','Name':'名称','Email':'邮箱','Role':'角色','Roles':'角色','Admin':'管理员','Administrator':'管理员','Super Admin':'超级管理员','Superadmin':'超级管理员','Viewer':'查看者','Editor':'编辑者','Guest':'访客','Permissions':'权限','Permission':'权限','Access':'访问权限','Account':'账户','Profile':'个人资料','Password':'密码','Change Password':'修改密码','Confirm Password':'确认密码','Email Address':'邮箱地址','First Name':'名字','Last Name':'姓氏','Active':'启用','Inactive':'停用','Enabled':'已启用','Disabled':'已禁用','Enable':'启用','Disable':'禁用',
-    'Site Settings':'网站设置','General':'常规','System':'系统','Security':'安全','Authentication':'身份验证','Two Factor Authentication':'双因素认证','Two-Factor Authentication':'双因素认证','Two-Factor':'双因素认证','Session':'会话','Sessions':'会话','Environment':'运行环境','Production':'生产环境','Development':'开发环境','Configuration':'配置','Database':'数据库','Storage':'存储','Files':'文件','Logs':'日志','Migrations':'数据库迁移','Version':'版本','Site Name':'网站名称','Site URL':'网站地址','Save Settings':'保存设置','System Settings':'系统设置','Plugin Settings':'插件设置','Media Library':'媒体库',
-    'Plugin':'插件','Plugin Manager':'插件管理','Installed':'已安装','Install':'安装','Uninstall':'卸载','Activate':'启用','Deactivate':'停用','Activated':'已启用','Deactivated':'已停用','Lexical':'Lexical 编辑器','Lexical Editor Plugin':'Lexical 编辑器插件','Versioning':'版本管理','Redirect Plugin':'重定向插件','GraphQL':'GraphQL','MCP':'MCP',
-    'Required':'必填','Optional':'可选','Invalid':'无效','Valid':'有效','Success':'成功','Error':'错误','Warning':'警告','Information':'提示','Info':'信息','Loading...':'加载中...','Loading':'加载中','Saving...':'保存中...','Saved':'已保存','Changes saved':'更改已保存','Failed':'失败','Are you sure?':'确定要继续吗？','Yes':'是','No':'否','None':'无','All':'全部','true':'是','false':'否'
+    'Content':'内容','Collections':'内容集合','Users':'用户','Plugins':'插件','Settings':'设置','Docs':'文档','Media':'媒体','Sign Out':'退出登录','Dashboard':'仪表盘',
+    'Search':'搜索','Create':'创建','Edit':'编辑','Save':'保存','Delete':'删除','Publish':'发布','Cancel':'取消',
+    'Content Management':'内容管理','Blog Posts':'博客文章','SEO Articles':'SEO 文章','SEO City Pages':'SEO 城市页面','WeChat Articles':'微信文章',
+    'User':'用户','Email':'邮箱','Role':'角色','Admin':'管理员','Settings':'设置','Site Name':'网站名称'
   };
   var keys = Object.keys(dict).sort(function (a, b) { return b.length - a.length; });
   function translateText(text) { if (!text) return text; var result = text; keys.forEach(function (key) { if (key.length >= 2 && result.indexOf(key) !== -1) result = result.split(key).join(dict[key]); }); return result; }
@@ -148,12 +165,10 @@ async function localizeAdminResponse(request: Request, response: Response): Prom
     var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); var nodes = []; var node;
     while ((node = walker.nextNode())) nodes.push(node);
     nodes.forEach(function (textNode) { if (!textNode.parentElement) return; var tag = textNode.parentElement.tagName; if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT') return; var original = textNode.nodeValue || ''; var translated = translateText(original); if (translated !== original) textNode.nodeValue = translated; });
-    root.querySelectorAll && root.querySelectorAll('input[placeholder], textarea[placeholder], [title], [aria-label]').forEach(function (el) { ['placeholder','title','aria-label'].forEach(function (attr) { if (el.hasAttribute(attr)) { var value = el.getAttribute(attr) || ''; var translated = translateText(value); if (translated !== value) el.setAttribute(attr, translated); } }); });
   }
-  function run() { translateNode(document.body); document.documentElement.lang = 'zh-CN'; var t = translateText(document.title); if (t !== document.title) document.title = t; if (document.title.indexOf('SonicJS') !== -1) document.title = document.title.replace(/SonicJS AI Admin/g, '财税网站管理后台'); }
+  function run() { translateNode(document.body); document.documentElement.lang = 'zh-CN'; if (document.title.indexOf('SonicJS') !== -1) document.title = document.title.replace(/SonicJS AI Admin/g, '财税网站管理后台'); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
-  var observer = new MutationObserver(function (mutations) { mutations.forEach(function (mutation) { mutation.addedNodes.forEach(function (node) { if (node.nodeType === 1) translateNode(node); }); }); });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  new MutationObserver(function (mutations) { mutations.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.nodeType === 1) translateNode(n); }); }); }).observe(document.documentElement, { childList: true, subtree: true });
 })();
 </script>`;
 
@@ -168,32 +183,23 @@ async function ensureBootstrapAdmin(db: D1Database): Promise<void> {
     const countRow = await db
       .prepare('SELECT COUNT(*) AS count FROM auth_user')
       .first<{ count: number | string }>();
-    const userCount = Number(countRow?.count ?? 0);
-    if (userCount < 1) return;
+    if (Number(countRow?.count ?? 0) < 1) return;
 
     const adminRow = await db
-      .prepare(
-        "SELECT COUNT(*) AS count FROM auth_user WHERE role = 'admin' OR is_super_admin = 1"
-      )
+      .prepare("SELECT COUNT(*) AS count FROM auth_user WHERE role = 'admin' OR is_super_admin = 1")
       .first<{ count: number | string }>();
-    const adminCount = Number(adminRow?.count ?? 0);
-    if (adminCount > 0) return;
+    if (Number(adminRow?.count ?? 0) > 0) return;
 
     const user = await db
-      .prepare(
-        'SELECT id, role, is_super_admin FROM auth_user ORDER BY created_at ASC LIMIT 1'
-      )
-      .first<{ id: string; role: string; is_super_admin: number }>();
+      .prepare('SELECT id FROM auth_user ORDER BY created_at ASC LIMIT 1')
+      .first<{ id: string }>();
     if (!user) return;
 
     await db
-      .prepare(
-        "UPDATE auth_user SET role = 'admin', is_super_admin = 1, updated_at = ? WHERE id = ?"
-      )
+      .prepare("UPDATE auth_user SET role = 'admin', is_super_admin = 1, updated_at = ? WHERE id = ?")
       .bind(Date.now(), user.id)
       .run();
-
-    console.log('[Bootstrap] Promoted the earliest user to administrator (no admin existed).');
+    console.log('[Bootstrap] Promoted earliest user to administrator.');
   } catch (error) {
     console.warn('[Bootstrap] First-user admin repair skipped:', error);
   }

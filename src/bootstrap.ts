@@ -54,7 +54,6 @@ async function runSql(db: D1Like, sql: string): Promise<void> {
   }
 }
 
-/** Minimal auth schema so /auth/register works even if full migrations failed. */
 const MINIMAL_AUTH_SQL = `
 CREATE TABLE IF NOT EXISTS auth_user (
   id TEXT PRIMARY KEY,
@@ -91,7 +90,7 @@ CREATE TABLE IF NOT EXISTS auth_user (
 CREATE INDEX IF NOT EXISTS idx_auth_user_email ON auth_user(email);
 CREATE TABLE IF NOT EXISTS auth_session (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES auth_user(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
   token TEXT NOT NULL UNIQUE,
   expires_at INTEGER NOT NULL,
   ip_address TEXT,
@@ -104,7 +103,7 @@ CREATE INDEX IF NOT EXISTS idx_auth_session_user_id ON auth_session(user_id);
 CREATE INDEX IF NOT EXISTS idx_auth_session_token ON auth_session(token);
 CREATE TABLE IF NOT EXISTS auth_account (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES auth_user(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
   account_id TEXT NOT NULL,
   provider_id TEXT NOT NULL,
   access_token TEXT,
@@ -126,7 +125,56 @@ CREATE TABLE IF NOT EXISTS auth_verification (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS auth_tenant (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  logo TEXT,
+  metadata TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  domain TEXT,
+  notes TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS auth_tenant_member (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'member',
+  email TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS auth_tenant_invitation (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  email TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'member',
+  status TEXT NOT NULL DEFAULT 'pending',
+  expires_at INTEGER NOT NULL,
+  inviter_id TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS auth_tenant_team (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  tenant_id TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
 `;
+
+/** Repair missing columns on already-created tenant tables (SQLite ADD COLUMN). */
+const REPAIR_COLUMNS = [
+  'ALTER TABLE auth_tenant_member ADD COLUMN tenant_id TEXT',
+  'ALTER TABLE auth_tenant_member ADD COLUMN updated_at INTEGER',
+  'ALTER TABLE auth_tenant_invitation ADD COLUMN tenant_id TEXT',
+  'ALTER TABLE auth_tenant_invitation ADD COLUMN updated_at INTEGER',
+  'ALTER TABLE auth_tenant ADD COLUMN updated_at INTEGER',
+  'ALTER TABLE auth_session ADD COLUMN active_organization_id TEXT',
+];
 
 export async function bootstrapDatabase(db: D1Like): Promise<{ ok: boolean; error?: string }> {
   try {
@@ -145,12 +193,19 @@ export async function bootstrapDatabase(db: D1Like): Promise<{ ok: boolean; erro
       )`,
     );
 
-    // Always ensure minimal auth tables first (register depends on these)
     for (const stmt of splitStatements(MINIMAL_AUTH_SQL)) {
       try {
         await runSql(db, stmt);
       } catch (error) {
         console.warn('[bootstrap] minimal auth:', String((error as Error)?.message || error).slice(0, 200));
+      }
+    }
+
+    for (const stmt of REPAIR_COLUMNS) {
+      try {
+        await runSql(db, stmt);
+      } catch {
+        /* column may already exist */
       }
     }
 
@@ -175,6 +230,33 @@ export async function bootstrapDatabase(db: D1Like): Promise<{ ok: boolean; erro
         .prepare('INSERT OR IGNORE INTO schema_bootstrap (id, applied_at) VALUES (?, ?)')
         .bind(migration.id, Date.now())
         .run();
+    }
+
+    // Apply 0009 tenant repair even if SCHEMA_MIGRATIONS copy is stale
+    for (const stmt of splitStatements(`
+CREATE TABLE IF NOT EXISTS auth_tenant (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, slug TEXT NOT NULL UNIQUE,
+  logo TEXT, metadata TEXT, status TEXT NOT NULL DEFAULT 'active',
+  domain TEXT, notes TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS auth_tenant_member (
+  id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, user_id TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'member', email TEXT,
+  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS auth_tenant_invitation (
+  id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, email TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'member', status TEXT NOT NULL DEFAULT 'pending',
+  expires_at INTEGER NOT NULL, inviter_id TEXT,
+  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+);
+`)) {
+      try {
+        await runSql(db, stmt);
+      } catch {
+        /* ignore */
+      }
     }
 
     const row = await db
