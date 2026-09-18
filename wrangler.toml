@@ -1,8 +1,5 @@
 # GitHub → Cloudflare Workers Builds
-# Worker name MUST match the connected Worker: sonicjs
-# Root directory: repository root (empty)
-# Custom Domain: leave empty (workers.dev)
-# D1 / R2 / KV: auto-provisioned on deploy when IDs are omitted
+# 一键部署：Deploy command = npm run deploy；Root 留空
 
 name = "sonicjs"
 main = "src/entrypoint.ts"
@@ -29,6 +26,8 @@ SITE_NAME = "全国财税发票服务"
 SITE_URL = ""
 BETTER_AUTH_URL = ""
 CONTACT_PHONE = ""
+# 允许本站前后端同源；部署后可在 CF 改成你的 workers.dev 完整地址
+CORS_ORIGINS = "*"
 
 [triggers]
 crons = ["*/10 * * * *"]
