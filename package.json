@@ -2,11 +2,12 @@
   "name": "sonicjs",
   "version": "1.0.0",
   "private": true,
-  "description": "\u5168\u56fd\u8d22\u7a0e\u53d1\u7968 SEO \u2014 Cloudflare Workers + D1 + R2 + KV",
+  "description": "全国财税发票 SEO — Cloudflare Workers + D1 + R2 + KV",
   "type": "module",
   "scripts": {
-    "build": "node scripts/cf-setup.mjs",
-    "deploy": "wrangler deploy",
+    "build": "echo Cloudflare Workers build ready",
+    "deploy": "node scripts/cf-deploy.mjs",
+    "cf:setup": "node scripts/cf-setup.mjs",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "type-check": "tsc --noEmit"
   },
