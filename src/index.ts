@@ -36,60 +36,33 @@ registerCollections([
 
 const config: SonicJSConfig = {
   auth: {
-    extendBetterAuth: (opts: any) => ({
-      ...opts,
-      // SonicJS uses auth_tenant* (tenant_id) while Better Auth organization plugin
-      // expects organizationId. Map fields + disable strict schema validation so
-      // login is not blocked by Drizzle/BA column-name mismatch noise.
-      advanced: {
-        ...(opts.advanced || {}),
-        database: {
-          ...(opts.advanced?.database || {}),
-          validateSchema: false,
-        },
-      },
-      plugins: opts.plugins?.map((plugin: any) => {
-        if (plugin?.id !== 'organization') return plugin;
-        const schema = plugin.options?.schema ?? {};
-        return {
-          ...plugin,
-          options: {
-            ...plugin.options,
-            schema: {
-              ...schema,
-              organization: {
-                ...schema.organization,
-                modelName: schema.organization?.modelName || 'auth_tenant',
-              },
-              member: {
-                ...schema.member,
-                modelName: schema.member?.modelName || 'auth_tenant_member',
-                fields: {
-                  ...(schema.member?.fields ?? {}),
-                  organizationId: 'tenantId',
-                },
-              },
-              invitation: {
-                ...schema.invitation,
-                modelName: schema.invitation?.modelName || 'auth_tenant_invitation',
-                fields: {
-                  ...(schema.invitation?.fields ?? {}),
-                  organizationId: 'tenantId',
-                },
-              },
-              team: {
-                ...schema.team,
-                modelName: schema.team?.modelName || 'auth_tenant_team',
-                fields: {
-                  ...(schema.team?.fields ?? {}),
-                  organizationId: 'tenantId',
-                },
-              },
-            },
+    /**
+     * Login was blocked by Better Auth organization-plugin schema validation
+     * (auth_tenant_member.tenant_id vs Drizzle tenantId mapping).
+     * This SEO site does not need multi-tenant orgs — strip the organization
+     * plugin and disable schema validation so email/password login works.
+     */
+    extendBetterAuth: (opts: any) => {
+      const plugins = Array.isArray(opts.plugins)
+        ? opts.plugins.filter((plugin: any) => {
+            const id = plugin?.id || plugin?.name;
+            // Keep everything except organization / multi-tenant plugin
+            return id !== 'organization' && id !== 'organizations';
+          })
+        : opts.plugins;
+
+      return {
+        ...opts,
+        plugins,
+        advanced: {
+          ...(opts.advanced || {}),
+          database: {
+            ...(opts.advanced?.database || {}),
+            validateSchema: false,
           },
-        };
-      }),
-    }),
+        },
+      };
+    },
   },
   plugins: {
     register: [redirectPlugin, mcpPlugin(), graphqlPlugin(), versioningPlugin],
