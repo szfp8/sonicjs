@@ -1,36 +1,28 @@
-# =============================================================================
-# SonicJS 官方绑定（必须与 @sonicjs-cms/core 一致）
-# 文档: https://sonicjs.com/blog/deploy-sonicjs-to-cloudflare-workers
+# 全国财税发票 SEO — Cloudflare Workers 一键部署配置
 #
-# | 资源 | binding 名称（不可改） | 用途              |
-# |------|------------------------|-------------------|
-# | D1   | DB                     | 用户/内容/设置库  |
-# | R2   | MEDIA_BUCKET           | 媒体上传          |
-# | KV   | CACHE_KV               | 边缘缓存          |
+# 重要：
+# 这里故意不填写 D1/KV/R2 的 resource ID。
+# Cloudflare 的 Deploy to Cloudflare / Workers Builds 会根据这些 bindings
+# 自动创建资源并在部署时注入实际 ID。不要再用脚本执行 d1 create / kv create / r2 create。
 #
-# GitHub 一键部署：Deploy command = npm run deploy；Root 留空
-# 密钥 JWT_SECRET / BETTER_AUTH_SECRET 仅用 CF Secret，禁止写进本文件
-# =============================================================================
-
 name = "sonicjs"
 main = "src/entrypoint.ts"
-compatibility_date = "2026-09-01"
+compatibility_date = "2026-09-18"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 preview_urls = false
 
-# ── D1（SonicJS 主库）────────────────────────────────────────────────────────
+# D1：只给默认名称，Deploy to Cloudflare 会自动创建并绑定。
 [[d1_databases]]
 binding = "DB"
 database_name = "sonicjs"
 migrations_dir = "migrations"
 
-# ── R2（媒体库，绑定名必须为 MEDIA_BUCKET）───────────────────────────────────
+# R2：省略 bucket_name，让 Cloudflare 自动创建。
 [[r2_buckets]]
 binding = "MEDIA_BUCKET"
-bucket_name = "sonicjs-media"
 
-# ── KV（缓存，绑定名必须为 CACHE_KV）─────────────────────────────────────────
+# KV：省略 id，让 Cloudflare 自动创建。
 [[kv_namespaces]]
 binding = "CACHE_KV"
 
@@ -41,8 +33,7 @@ SITE_URL = ""
 BETTER_AUTH_URL = ""
 CONTACT_PHONE = ""
 CORS_ORIGINS = "*"
-# SonicJS 媒体 URL 会读 BUCKET_NAME，需与上面 R2 bucket_name 一致
-BUCKET_NAME = "sonicjs-media"
+BUCKET_NAME = ""
 
 [triggers]
 crons = ["*/10 * * * *"]
