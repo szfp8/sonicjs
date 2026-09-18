@@ -1,44 +1,47 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    // Language and Environment
+    "target": "ES2022",
+    "lib": ["ES2022"],
     "module": "ESNext",
     "moduleResolution": "bundler",
+
+    // Emit
+    "noEmit": true,
+    "sourceMap": true,
+
+    // Type Checking
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true,
+
+    // Module Resolution
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "allowJs": true,
-    "checkJs": false,
-    "jsx": "preserve",
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "outDir": "./dist",
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true,
-    "noEmitOnError": true,
-    "useDefineForClassFields": true,
     "forceConsistentCasingInFileNames": true,
+
+    // Cloudflare Workers Types
+    "types": ["@cloudflare/workers-types", "@types/node"],
+
+    // Skip type checking for node_modules
     "skipLibCheck": true,
-    "types": ["@cloudflare/workers-types", "vitest/globals"],
+
+    // Project Structure
+    "rootDir": ".",
+    "baseUrl": ".",
     "paths": {
-      "@sonicjs-cms/core": ["./packages/core/src/index.ts"],
-      "@sonicjs-cms/core/*": ["./packages/core/src/*"],
-      "@sonicjs-cms/sdk": ["./packages/sdk/src/index.ts"],
-      "@sonicjs-cms/sdk/*": ["./packages/sdk/src/*"],
-      "@sonicjs-cms/templates": ["./packages/templates/src/index.ts"],
-      "@sonicjs-cms/templates/*": ["./packages/templates/src/*"]
+      "@/*": ["./src/*"]
     }
   },
-  "include": ["packages/*/src/**/*", "tests/**/*"],
+  "include": [
+    "src/**/*"
+  ],
   "exclude": [
     "node_modules",
-    "**/node_modules",
-    "**/dist",
-    "**/build",
-    "**/.wrangler",
-    "my-sonicjs-app"
+    "dist"
   ]
 }

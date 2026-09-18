@@ -1,24 +1,27 @@
-# Cloudflare Workers production configuration
-# Domain, D1 and R2 are configured after deployment
-# Project: szfp8-tax-seo
+# GitHub → Cloudflare Workers Builds
+# Worker name MUST match the connected Worker: sonicjs
+# Root directory: repository root (empty)
+# Custom Domain: leave empty (workers.dev)
+# D1 / R2 / KV: auto-provisioned on deploy when IDs are omitted
 
-name = "szfp8-tax-seo"
-main = "my-sonicjs-app/src/entrypoint.ts"
+name = "sonicjs"
+main = "src/entrypoint.ts"
 compatibility_date = "2026-09-01"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
+preview_urls = false
 
-# Uncomment after creating D1
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "szfp8-tax-seo-db"
-# database_id = "YOUR_D1_ID"
-# migrations_dir = "my-sonicjs-app/migrations"
+[[d1_databases]]
+binding = "DB"
+database_name = "sonicjs"
+migrations_dir = "migrations"
 
-# Uncomment after creating R2
-# [[r2_buckets]]
-# binding = "MEDIA_BUCKET"
-# bucket_name = "szfp8-tax-seo-media"
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "sonicjs-media"
+
+[[kv_namespaces]]
+binding = "CACHE_KV"
 
 [vars]
 ENVIRONMENT = "production"
@@ -27,7 +30,6 @@ SITE_URL = ""
 BETTER_AUTH_URL = ""
 CONTACT_PHONE = ""
 
-# SEO/content scheduled tasks
 [triggers]
 crons = ["*/10 * * * *"]
 
