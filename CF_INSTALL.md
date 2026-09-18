@@ -2,6 +2,8 @@
 
 **不在本地部署。** 在 Cloudflare 控制台连接本仓库，由 CF 自动构建部署。
 
+**域名绑定：留空，不配置 Custom Domain。**
+
 ## 控制台配置
 
 1. [Cloudflare Dashboard](https://dash.cloudflare.com/) → **Workers & Pages** → 连接 Git
@@ -26,12 +28,12 @@
 
 - D1 → `DB` → `szfp8-tax-seo-db`
 - R2 → `MEDIA_BUCKET` → `szfp8-tax-seo-media`
-- 域名 → `szfp8.com`
+- **域名 / Custom Domain → 不填，留空**（用 workers.dev 即可）
 
 ## 部署后
 
 1. 首次需要时执行 D1 migration（远程一次即可）
-2. 打开 `/auth/register` 注册第一个用户
+2. 用 workers.dev 地址打开 `/auth/register` 注册第一个用户
 3. `/auth/login` → `/admin`
 
 详见根目录 [README.md](./README.md)。
