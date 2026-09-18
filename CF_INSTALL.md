@@ -1,39 +1,17 @@
-# 从 GitHub 部署到 Cloudflare（推荐）
+# 全新 Cloudflare：只连接 GitHub 部署
 
-**不在本地部署。** 在 Cloudflare 控制台连接本仓库，由 CF 自动构建部署。
+1. Cloudflare → Workers & Pages → Connect to Git
+2. 仓库：`szfp8/sonicjs`，分支：`main`
+3. **Root directory：`my-sonicjs-app`**
+4. Build：`npm run build` · Deploy：`npx wrangler deploy`
+5. **域名留空**
+6. Save and Deploy
 
-**域名绑定：留空，不配置 Custom Domain。**
+部署后在控制台给 Worker 加 Bindings：
 
-## 控制台配置
+- D1 → `DB`
+- R2 → `MEDIA_BUCKET`
 
-1. [Cloudflare Dashboard](https://dash.cloudflare.com/) → **Workers & Pages** → 连接 Git
-2. 仓库：`https://github.com/szfp8/sonicjs`
-3. 分支：`main`
-4. **Root directory：`my-sonicjs-app`**
-5. Install：`npm install`
-6. Build：`npm run build`
-7. Deploy：`npx wrangler deploy`
-8. Worker 名：`szfp8-tax-seo`
+Secrets：`JWT_SECRET`、`BETTER_AUTH_SECRET`
 
-## Secrets（控制台 Variables and Secrets）
-
-必须：
-
-- `JWT_SECRET`
-- `BETTER_AUTH_SECRET`
-
-可选：`INDEXNOW_KEY`
-
-## 绑定
-
-- D1 → `DB` → `szfp8-tax-seo-db`
-- R2 → `MEDIA_BUCKET` → `szfp8-tax-seo-media`
-- **域名 / Custom Domain → 不填，留空**（用 workers.dev 即可）
-
-## 部署后
-
-1. 首次需要时执行 D1 migration（远程一次即可）
-2. 用 workers.dev 地址打开 `/auth/register` 注册第一个用户
-3. `/auth/login` → `/admin`
-
-详见根目录 [README.md](./README.md)。
+用 `*.workers.dev` 打开 `/auth/register` 注册管理员。
