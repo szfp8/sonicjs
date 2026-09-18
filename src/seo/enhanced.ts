@@ -43,6 +43,10 @@ function dataOf(row: DocumentRow): Record<string, unknown> {
   }
 }
 
+function langQuery(lang: LanguageCode): string {
+  return lang === 'zh' ? '' : `?lang=${lang}`;
+}
+
 function langSwitcher(request: Request, lang: LanguageCode): string {
   const url = new URL(request.url);
   const options = (Object.keys(supportedLanguages) as LanguageCode[])
@@ -57,9 +61,9 @@ function langSwitcher(request: Request, lang: LanguageCode): string {
   return `<nav class="lang">${t(lang).language}: ${options}</nav>`;
 }
 
-function mainNav(origin: string, lang: LanguageCode): string {
+function mainNav(lang: LanguageCode): string {
   const m = t(lang);
-  const q = lang === 'zh' ? '' : `?lang=${lang}`;
+  const q = langQuery(lang);
   return `<nav class="main-nav">
     <a href="/${q}">${esc(m.navHome)}</a>
     <a href="/news${q}">${esc(m.navNews)}</a>
@@ -80,7 +84,7 @@ function layout(
 ): Response {
   const m = t(lang);
   const htmlLang = lang === 'zh' ? 'zh-CN' : lang;
-  const response = new Response(`<!doctype html>
+  return new Response(`<!doctype html>
 <html lang="${htmlLang}"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title><meta name="description" content="${esc(description)}">
@@ -102,34 +106,26 @@ a{color:#155eef;text-decoration:none}.muted{color:#667085;font-size:13px}
 .cover{width:100%;max-height:180px;object-fit:cover;border-radius:10px;margin-bottom:10px}
 </style></head><body>
 <header><div class="top"><strong>${esc(siteName(env, lang))}</strong>${langSwitcher(request, lang)}</div>
-${mainNav(new URL(request.url).origin, lang)}</header>
+${mainNav(lang)}</header>
 <main>${body}<div class="muted" style="margin-top:30px">${esc(m.footer)}</div></main></body></html>`, {
     headers: {
       'content-type': 'text/html; charset=UTF-8',
       'set-cookie': languageCookieHeader(lang),
     },
   });
-  return response;
 }
 
-async function publishedByType(db: D1Database, typeId: string, limit: number, lang?: string): Promise<DocumentRow[]> {
-  let sql = `
+async function publishedByType(db: D1Database, typeId: string, limit: number): Promise<DocumentRow[]> {
+  const result = await db.prepare(`
     SELECT id, slug, title, data, published_at, updated_at
     FROM documents
     WHERE tenant_id = 'default'
       AND type_id = ?
       AND is_published = 1
       AND deleted_at IS NULL
-  `;
-  const binds: (string | number)[] = [typeId];
-  if (lang && lang !== 'zh') {
-    // Prefer language-tagged rows when present; still show untagged/zh as fallback list is separate
-    sql += ` AND (json_extract(data, '$.language') = ? OR json_extract(data, '$.language') IS NULL OR json_extract(data, '$.language') = '')`;
-    binds.push(lang);
-  }
-  sql += ` ORDER BY COALESCE(published_at, updated_at) DESC, id DESC LIMIT ?`;
-  binds.push(limit);
-  const result = await db.prepare(sql).bind(...binds).all<DocumentRow>();
+    ORDER BY COALESCE(published_at, updated_at) DESC, id DESC
+    LIMIT ?
+  `).bind(typeId, limit).all<DocumentRow>();
   return result.results || [];
 }
 
@@ -137,8 +133,8 @@ async function publishedArticles(db: D1Database, limit: number): Promise<Documen
   return publishedByType(db, 'seo_article', limit);
 }
 
-async function publishedWechat(db: D1Database, limit: number, lang?: LanguageCode): Promise<DocumentRow[]> {
-  return publishedByType(db, 'wechat_article', limit, lang);
+async function publishedWechat(db: D1Database, limit: number): Promise<DocumentRow[]> {
+  return publishedByType(db, 'wechat_article', limit);
 }
 
 async function articleBySlug(db: D1Database, typeId: string, slug: string): Promise<DocumentRow | null> {
@@ -166,6 +162,7 @@ export async function handleEnhancedSeoRequest(
   const lang = detectLanguage(request);
   const m = t(lang);
   const origin = url.origin;
+  const q = langQuery(lang);
 
   if (request.method === 'GET' && url.pathname === '/news') {
     const articles = await publishedArticles(db, 30).catch(() => []);
@@ -174,14 +171,14 @@ export async function handleEnhancedSeoRequest(
       const summary = String(data.summary || data.seoDescription || '');
       const source = String(data.sourceName || (lang === 'zh' ? '公开政策来源' : 'Official source'));
       const slug = row.slug || row.id;
-      return `<article class="card"><span class="tag">${esc(m.navNews)}</span><span class="muted">${esc(m.source)}：${esc(source)}</span><h2><a href="/article/${encodeURIComponent(slug)}${lang !== 'zh' ? `?lang=${lang}` : ''}">${esc(row.title || m.newsTitle)}</a></h2><p>${esc(summary.slice(0, 180))}</p><a href="/article/${encodeURIComponent(slug)}${lang !== 'zh' ? `?lang=${lang}` : ''}">${esc(m.newsReadMore)}</a></article>`;
+      return `<article class="card"><span class="tag">${esc(m.navNews)}</span><span class="muted">${esc(m.source)}：${esc(source)}</span><h2><a href="/article/${encodeURIComponent(slug)}${q}">${esc(row.title || m.newsTitle)}</a></h2><p>${esc(summary.slice(0, 180))}</p><a href="/article/${encodeURIComponent(slug)}${q}">${esc(m.newsReadMore)}</a></article>`;
     }).join('');
     const body = `<section class="card"><h1>${esc(m.newsTitle)}</h1><p><strong>${lang === 'zh' ? '来源 + 原创解读 + 企业实际价值' : 'Source + interpretation + business value'}</strong></p><p class="notice">${esc(m.policyNotice)}</p></section><section class="grid">${cards || `<div class="card"><p>${esc(m.newsEmpty)}</p></div>`}</section>`;
     return layout(`${m.newsTitle}｜${siteName(env, lang)}`, m.newsDesc, body, `${origin}/news`, env, request, lang);
   }
 
   if (request.method === 'GET' && url.pathname === '/wechat') {
-    const rows = await publishedWechat(db, 40, lang).catch(() => []);
+    const rows = await publishedWechat(db, 40).catch(() => []);
     const cards = rows.map((row) => {
       const data = dataOf(row);
       const summary = String(data.summary || '');
@@ -189,7 +186,7 @@ export async function handleEnhancedSeoRequest(
       const cover = String(data.coverUrl || '');
       const slug = row.slug || row.id;
       const coverHtml = cover ? `<img class="cover" src="${esc(cover)}" alt="" loading="lazy">` : '';
-      return `<article class="card">${coverHtml}<span class="tag">${esc(m.navWechat)}</span>${account ? `<span class="muted">${esc(m.wechatAccount)}：${esc(account)}</span>` : ''}<h2><a href="/wechat/${encodeURIComponent(slug)}${lang !== 'zh' ? `?lang=${lang}` : ''}">${esc(row.title || m.wechatTitle)}</a></h2><p>${esc(summary.slice(0, 160))}</p><a href="/wechat/${encodeURIComponent(slug)}${lang !== 'zh' ? `?lang=${lang}` : ''}">${esc(m.newsReadMore)}</a></article>`;
+      return `<article class="card">${coverHtml}<span class="tag">${esc(m.navWechat)}</span>${account ? `<span class="muted">${esc(m.wechatAccount)}：${esc(account)}</span>` : ''}<h2><a href="/wechat/${encodeURIComponent(slug)}${q}">${esc(row.title || m.wechatTitle)}</a></h2><p>${esc(summary.slice(0, 160))}</p><a href="/wechat/${encodeURIComponent(slug)}${q}">${esc(m.newsReadMore)}</a></article>`;
     }).join('');
     const body = `<section class="card"><h1>${esc(m.wechatTitle)}</h1><p>${esc(m.wechatDesc)}</p></section><section class="grid">${cards || `<div class="card"><p>${esc(m.wechatEmpty)}</p></div>`}</section>`;
     return layout(`${m.wechatTitle}｜${siteName(env, lang)}`, m.wechatDesc, body, `${origin}/wechat`, env, request, lang);
@@ -220,8 +217,8 @@ export async function handleEnhancedSeoRequest(
   }
 
   if (request.method === 'GET' && url.pathname === '/search') {
-    const q = (url.searchParams.get('q') || '').trim().slice(0, 80);
-    if (!q) {
+    const searchQ = (url.searchParams.get('q') || '').trim().slice(0, 80);
+    if (!searchQ) {
       return layout(`${m.navSearch}｜${siteName(env, lang)}`, m.searchPlaceholder, `<section class="card"><h1>${esc(m.navSearch)}</h1><p>${esc(m.searchPlaceholder)}</p></section>`, `${origin}/search`, env, request, lang);
     }
     const rows = await db.prepare(`
@@ -231,13 +228,13 @@ export async function handleEnhancedSeoRequest(
         AND (title LIKE ? OR data LIKE ?)
       ORDER BY COALESCE(published_at, updated_at) DESC
       LIMIT 30
-    `).bind(`%${q}%`, `%${q}%`).all<DocumentRow & { type_id?: string }>().then((r) => r.results || []).catch(() => []);
+    `).bind(`%${searchQ}%`, `%${searchQ}%`).all<DocumentRow & { type_id?: string }>().then((r) => r.results || []).catch(() => []);
     const cards = rows.map((row) => {
       const isWechat = (row as { type_id?: string }).type_id === 'wechat_article';
       const path = isWechat ? `/wechat/${encodeURIComponent(row.slug || row.id)}` : `/article/${encodeURIComponent(row.slug || row.id)}`;
-      return `<article class="card"><span class="tag">${esc(isWechat ? m.navWechat : m.navNews)}</span><h2><a href="${path}${lang !== 'zh' ? `?lang=${lang}` : ''}">${esc(row.title || '')}</a></h2><p>${esc(String(dataOf(row).summary || '').slice(0, 180))}</p></article>`;
+      return `<article class="card"><span class="tag">${esc(isWechat ? m.navWechat : m.navNews)}</span><h2><a href="${path}${q}">${esc(row.title || '')}</a></h2><p>${esc(String(dataOf(row).summary || '').slice(0, 180))}</p></article>`;
     }).join('');
-    return layout(`“${q}” ${m.searchResults}｜${siteName(env, lang)}`, `${m.searchResults}: ${q}`, `<section class="card"><h1>“${esc(q)}” ${esc(m.searchResults)}</h1><p class="muted">${rows.length}</p></section><section class="grid">${cards || `<div class="card"><p>${esc(m.noResults)}</p></div>`}</section>`, `${origin}/search?q=${encodeURIComponent(q)}`, env, request, lang);
+    return layout(`“${searchQ}” ${m.searchResults}｜${siteName(env, lang)}`, `${m.searchResults}: ${searchQ}`, `<section class="card"><h1>“${esc(searchQ)}” ${esc(m.searchResults)}</h1><p class="muted">${rows.length}</p></section><section class="grid">${cards || `<div class="card"><p>${esc(m.noResults)}</p></div>`}</section>`, `${origin}/search?q=${encodeURIComponent(searchQ)}`, env, request, lang);
   }
 
   if (request.method === 'GET' && url.pathname.startsWith('/article/')) {

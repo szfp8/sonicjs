@@ -54,6 +54,21 @@ function setupPage(env: RuntimeEnv): Response {
   return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8' } });
 }
 
+function errorPage(message: string, detail?: string): Response {
+  const safe = String(message || 'Unknown error').slice(0, 500);
+  const extra = detail ? `<pre style="white-space:pre-wrap;background:#1e293b;padding:12px;border-radius:8px;color:#fca5a5;font-size:12px">${detail.replace(/</g, '&lt;').slice(0, 2000)}</pre>` : '';
+  const html = `<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>服务暂时不可用</title>
+<style>body{font-family:system-ui,sans-serif;margin:0;background:#0f172a;color:#e2e8f0}main{max-width:720px;margin:48px auto;padding:0 20px}a{color:#7dd3fc}</style>
+</head><body><main>
+<h1>前台暂时打不开</h1>
+<p>${safe}</p>${extra}
+<p>请先打开 <a href="/status">/status</a> 查看绑定与迁移状态，并把结果发回排查。</p>
+</main></body></html>`;
+  return new Response(html, { status: 500, headers: { 'content-type': 'text/html; charset=utf-8' } });
+}
+
 async function prepareEnv(env: RuntimeEnv): Promise<RuntimeEnv> {
   if (env.DB) {
     try {
@@ -62,52 +77,93 @@ async function prepareEnv(env: RuntimeEnv): Promise<RuntimeEnv> {
       console.warn('[bootstrap] database setup failed:', error);
     }
   }
-  return ensureAuthSecrets(env);
+  try {
+    return await ensureAuthSecrets(env);
+  } catch (error) {
+    console.warn('[bootstrap] ensureAuthSecrets failed:', error);
+    return env;
+  }
 }
 
 export default {
   async fetch(request: Request, env: RuntimeEnv, ctx: ExecutionContext) {
-    const url = new URL(request.url);
-    const runtimeEnv = await prepareEnv(env);
+    try {
+      const url = new URL(request.url);
+      const runtimeEnv = await prepareEnv(env);
 
-    if (url.pathname === '/status' || url.pathname === '/health') {
-      let migrated = false;
-      if (runtimeEnv.DB) {
+      if (url.pathname === '/status' || url.pathname === '/health') {
+        let migrated = false;
+        let migrateError = '';
+        if (runtimeEnv.DB) {
+          try {
+            const row = await runtimeEnv.DB.prepare(
+              "SELECT name FROM sqlite_master WHERE type='table' AND name='auth_user'"
+            ).first();
+            migrated = Boolean(row);
+          } catch (error) {
+            migrated = false;
+            migrateError = String((error as Error)?.message || error);
+          }
+        }
+        return json({
+          ok: Boolean(runtimeEnv.DB) && migrated && Boolean(runtimeEnv.JWT_SECRET),
+          worker: 'sonicjs',
+          bindings: {
+            DB: Boolean(runtimeEnv.DB),
+            MEDIA_BUCKET: Boolean(runtimeEnv.MEDIA_BUCKET),
+            CACHE_KV: Boolean(runtimeEnv.CACHE_KV),
+            JWT_SECRET: Boolean(runtimeEnv.JWT_SECRET),
+            BETTER_AUTH_SECRET: Boolean(runtimeEnv.BETTER_AUTH_SECRET),
+          },
+          migrated,
+          migrateError: migrateError || undefined,
+        });
+      }
+
+      if (!runtimeEnv.DB && (url.pathname.startsWith('/admin') || url.pathname.startsWith('/auth'))) {
+        return setupPage(runtimeEnv);
+      }
+
+      // Front pages should not hard-fail when CMS backend has issues.
+      try {
+        return await handleEnhancedSeoRequest(request, runtimeEnv as never, async () => {
+          try {
+            return await worker.fetch(request, runtimeEnv, ctx);
+          } catch (error) {
+            console.error('[worker.fetch]', error);
+            return errorPage(
+              '后台应用处理失败（前台路由已尝试回退）。',
+              String((error as Error)?.stack || (error as Error)?.message || error),
+            );
+          }
+        });
+      } catch (error) {
+        console.error('[enhanced]', error);
         try {
-          const row = await runtimeEnv.DB.prepare(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='auth_user'"
-          ).first();
-          migrated = Boolean(row);
-        } catch {
-          migrated = false;
+          return await worker.fetch(request, runtimeEnv, ctx);
+        } catch (inner) {
+          return errorPage(
+            '前台与后台均处理失败。',
+            String((inner as Error)?.stack || (inner as Error)?.message || inner),
+          );
         }
       }
-      return json({
-        ok: Boolean(runtimeEnv.DB) && migrated && Boolean(runtimeEnv.JWT_SECRET),
-        worker: 'sonicjs',
-        bindings: {
-          DB: Boolean(runtimeEnv.DB),
-          MEDIA_BUCKET: Boolean(runtimeEnv.MEDIA_BUCKET),
-          CACHE_KV: Boolean(runtimeEnv.CACHE_KV),
-          JWT_SECRET: Boolean(runtimeEnv.JWT_SECRET),
-          BETTER_AUTH_SECRET: Boolean(runtimeEnv.BETTER_AUTH_SECRET),
-        },
-        migrated,
-      });
+    } catch (error) {
+      console.error('[entrypoint]', error);
+      return errorPage(
+        'Worker 入口异常。',
+        String((error as Error)?.stack || (error as Error)?.message || error),
+      );
     }
-
-    if (!runtimeEnv.DB && (url.pathname.startsWith('/admin') || url.pathname.startsWith('/auth'))) {
-      return setupPage(runtimeEnv);
-    }
-
-    return handleEnhancedSeoRequest(request, runtimeEnv as never, () =>
-      worker.fetch(request, runtimeEnv, ctx)
-    );
   },
 
   async scheduled(controller: ScheduledController, env: RuntimeEnv, ctx: ExecutionContext) {
     if (!env.DB) return;
-    const runtimeEnv = await prepareEnv(env);
-    return worker.scheduled(controller, runtimeEnv, ctx);
+    try {
+      const runtimeEnv = await prepareEnv(env);
+      return worker.scheduled(controller, runtimeEnv, ctx);
+    } catch (error) {
+      console.warn('[scheduled]', error);
+    }
   },
 };
