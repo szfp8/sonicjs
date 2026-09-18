@@ -3,11 +3,11 @@
 基于 **Cloudflare Workers + D1 + R2** 的财税 SEO 生产站。  
 后台使用 SonicJS CMS（`@sonicjs-cms/core`），前台为全国城市 SEO 与政策资讯。
 
-**线上：** https://szfp8.com  
 **仓库：** https://github.com/szfp8/sonicjs
 
 > **部署方式：在 Cloudflare 控制台连接本 GitHub 仓库，由 Cloudflare 自动构建并部署。**  
-> 不需要在本地安装 Node、不需要双击 bat、不需要本机执行 wrangler。
+> 不需要在本地安装 Node、不需要双击 bat、不需要本机执行 wrangler。  
+> **域名绑定：留空，不在本仓库 / 部署流程中配置。**
 
 ---
 
@@ -45,6 +45,8 @@
 
 `my-sonicjs-app/wrangler.toml` 里已写好 D1 ID 与 R2 名称，与控制台保持一致即可。
 
+**域名 / Custom Domain：不配置，留空。** 先用 Cloudflare 分配的 `*.workers.dev` 访问即可。
+
 ### 4. 设置 Secrets（必须，不要写进 GitHub）
 
 在 Cloudflare → 该 Worker → **Settings** → **Variables and Secrets** → **Secrets** 中添加：
@@ -55,52 +57,41 @@
 | `BETTER_AUTH_SECRET` | 随机长字符串（会话必需） |
 | `INDEXNOW_KEY` | 可选，IndexNow 推送 |
 
-也可在本机（仅设一次密钥时）用：
-
-```bash
-npx wrangler secret put JWT_SECRET
-npx wrangler secret put BETTER_AUTH_SECRET
-```
-
 ### 5. 公共变量（vars）
 
 已在 `my-sonicjs-app/wrangler.toml` 中配置，也可在控制台覆盖：
 
-- `SITE_URL` = `https://szfp8.com`
 - `SITE_NAME` = `全国财税发票服务`
-- `BETTER_AUTH_URL` = `https://szfp8.com`
+- `SITE_URL` / `BETTER_AUTH_URL` — 可先留空或填 workers.dev 地址，以后再改
 - `ENVIRONMENT` = `production`
 
-### 6. 绑定域名
-
-在 Cloudflare → Worker → **Triggers / Domains** 中把 **szfp8.com** 绑到该 Worker。
-
-### 7. 触发部署
+### 6. 触发部署
 
 - 保存配置后点 **Save and Deploy**，或
 - 向 `main` 推送代码，Cloudflare 会自动重新构建部署
+
+部署成功后，在 Cloudflare Worker 概览页查看 **workers.dev** 访问地址。
 
 ---
 
 ## 首次上线（部署成功后）
 
-1. **D1 迁移**（仅首次或改表结构时，在 Cloudflare 控制台用远程命令或本机一次）：
+1. **D1 迁移**（仅首次或改表结构时）：
 
    ```bash
-   # 仅在需要 migration 时；日常代码发布不必执行
    cd my-sonicjs-app
    npx wrangler d1 migrations apply DB --remote
    ```
 
-2. 打开 https://szfp8.com/auth/register 注册**第一个**用户  
-3. 打开 https://szfp8.com/auth/login 登录 → 进入 `/admin`  
+2. 用 Worker 的 `*.workers.dev` 地址打开 `/auth/register` 注册**第一个**用户  
+3. 打开 `/auth/login` 登录 → 进入 `/admin`  
 4. 若库中没有任何管理员，系统会自动把最早用户提升为管理员
 
 若日志出现 `JWT_SECRET is not set` 或「无权限」：先在控制台补全 Secrets，再 **Retry deployment**。
 
 ---
 
-## 站点入口
+## 站点入口（相对路径）
 
 | 功能 | 路径 |
 |------|------|
@@ -124,17 +115,15 @@ szfp8/sonicjs
     ├── src/entrypoint.ts    ← Worker 入口
     ├── src/index.ts
     ├── migrations/
-    ├── wrangler.toml        ← 生产配置（name / D1 / R2 / vars）
-    └── package.json         ← build / deploy 脚本
+    ├── wrangler.toml        ← 生产配置（无域名 routes）
+    └── package.json
 ```
-
-每次 `main` 更新后，Cloudflare 在 **`my-sonicjs-app`** 目录执行 `npm install` → `npm run build` → `npx wrangler deploy`。
 
 ---
 
 ## 注意
 
-- **推荐流程：GitHub `main` → Cloudflare Workers Builds 自动部署**
+- **域名绑定留空**，不在仓库和部署步骤里配置 Custom Domain
 - 不要把密码、Secret 写进仓库
-- 日常发版只推代码；D1 migration 与代码部署分开，避免误伤数据
-- Worker 名称请与配置一致：`szfp8-tax-seo`（若 CF 里叫 `sonicjs` 会报 name mismatch，以控制台 Worker 名为准或改 `wrangler.toml`）
+- 日常发版只推 `main`；D1 migration 与代码部署分开
+- Worker 名称与配置一致：`szfp8-tax-seo`
