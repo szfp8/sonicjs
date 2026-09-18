@@ -3,7 +3,7 @@
 仓库：`szfp8/sonicjs`
 
 这个版本按 **Cloudflare 官方 Deploy to Cloudflare 自动资源 provision** 方式设计：
-GitHub 仓库里的 Wrangler 配置只声明 D1 / R2 / KV 的绑定和默认名称，不在 GitHub Actions/Workers Builds 里自行执行 `d1 create`、`r2 bucket create`、`kv namespace create`，也不要求你提供 Cloudflare API Token。Cloudflare 会在部署过程中自动创建所需资源并绑定 Worker。citeturn0search1turn1search2
+GitHub 仓库里的 Wrangler 配置只声明 D1 / R2 / KV 的绑定和默认名称，不在 GitHub Actions/Workers Builds 里自行执行 `d1 create`、`r2 bucket create`、`kv namespace create`，也不要求你提供 Cloudflare API Token。Cloudflare 官方目前支持 Deploy to Cloudflare 自动 provision D1、KV、R2 等资源并绑定 Worker。
 
 ## 一键部署
 
@@ -16,7 +16,7 @@ Cloudflare 会：
 2. 根据 `wrangler.toml` 自动创建 D1、R2、KV；
 3. 创建/配置 Worker；
 4. 使用仓库中的 `npm run deploy` 完成 Worker 发布和 D1 migrations；
-5. 建立 Workers Builds，之后 GitHub 推送可以自动部署。citeturn0search1turn0search4
+5. 建立 Workers Builds，之后 GitHub 推送可以自动部署。
 
 ### Cloudflare 部署页的设置
 
@@ -28,7 +28,7 @@ Cloudflare 会：
 | Worker name | `sonicjs` 或 Cloudflare 页面允许的名称 |
 | Production branch | `main` |
 
-**不要**再手动填写 D1 ID、KV ID、R2 bucket ID，也不要在 Build 中运行 `npm run cf:setup`。
+**不要**再手动填写 D1 ID、KV ID、R2 bucket ID，也不要运行旧版的资源创建脚本。
 
 ## 为什么这次改掉原来的部署脚本
 
