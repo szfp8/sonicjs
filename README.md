@@ -1,88 +1,54 @@
 # 全国财税发票 SEO
 
-Cloudflare Workers + D1 + R2 + KV（基于 SonicJS）。
+Cloudflare Workers + **新建** D1 / R2 / KV（基于 SonicJS）。
 
 仓库：https://github.com/szfp8/sonicjs
 
 ---
 
-## 一键部署（推荐）
-
-你的 Cloudflare 已清空时，直接点下面按钮即可：
+## 一键部署（清空 CF 后推荐）
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/szfp8/sonicjs)
 
-### 按钮流程
-
-1. 打开上方面板，用 GitHub / Cloudflare 账号授权  
-2. 选择仓库 **`szfp8/sonicjs`**（或你的 fork）  
-3. 其余保持默认，确认部署  
-4. 等待构建成功（会自动创建 D1 / R2 / KV，并执行 `npm run deploy`）  
-5. 在 Cloudflare → **Workers & Pages** → **sonicjs** 复制 **`*.workers.dev`** 地址  
-
-### 部署后 3 步
-
-| 步骤 | 打开地址 |
-|------|----------|
-| ① 检查 | `https://你的域名/status` → 看到 `"ok": true` |
-| ② 注册管理员 | `https://你的域名/auth/register` |
-| ③ 登录后台 | `https://你的域名/auth/login` → `/admin` |
-
-前台首页：`https://你的域名/`
-
-> **不要填自定义域名**（先用 workers.dev）。**Root directory 留空**。部署命令已是仓库里的 `npm run deploy`。
-
----
-
-## 备用：控制台连接 Git
-
-若按钮不可用：
-
-1. [Cloudflare Dashboard](https://dash.cloudflare.com/) → **Workers & Pages** → **Create** → **Connect to Git**  
-2. 选 **`szfp8/sonicjs`**，分支 **`main`**  
-3. 填写：
+或：**Workers & Pages → Create → Connect to Git** → 选 `szfp8/sonicjs` → 分支 `main`：
 
 | 项 | 值 |
 |----|-----|
 | Root directory | **留空** |
 | Build command | `npm run build` |
-| Deploy command | **`npm run deploy`** |
+| **Deploy command** | **`npm run deploy`** |
 | Worker name | `sonicjs` |
 | Custom domain | **留空** |
 
-4. **Save and Deploy**
+### 部署时自动做什么（不是搬旧数据）
+
+`npm run deploy` 会在**当前 Cloudflare 账号**里：
+
+1. **新建** D1 数据库 `sonicjs`（已有同名则复用）  
+2. **新建** R2 桶 `sonicjs-media`  
+3. **新建** KV `CACHE_KV`  
+4. 发布 Worker 并绑定以上资源  
+5. 对**空的 D1** 执行建表 SQL（创建用户表、内容表等）  
+6. 写入 `JWT_SECRET` / `BETTER_AUTH_SECRET` 等 Secret  
+
+> 说明：命令里的 *migrations* 只表示「空库建表脚本」，**不是**从旧站点迁移数据。你清空 CF 后就是全新资源。
+
+### 部署后
+
+1. 打开 `https://你的域名/status` → `ok` / `DB` / `migrated` / `JWT_SECRET` 应为 true  
+2. `/auth/register` 注册第一个管理员  
+3. `/auth/login` → `/admin`  
+4. 前台：`/`  
 
 ---
 
-## 前台链接
+## 前台 / 后台路径
 
-| 功能 | 路径 |
-|------|------|
-| 首页 | `/` |
-| 政策解读 | `/news` |
-| 微信文章 | `/wechat` |
-| 城市页 | `/city/北京` |
-| 咨询 | `/contact` |
-| 搜索 | `/search?q=关键词` |
-| 状态 | `/status` |
-| Sitemap | `/sitemap.xml` |
-
-## 后台链接
-
-| 功能 | 路径 |
-|------|------|
-| 注册 | `/auth/register` |
-| 登录 | `/auth/login` |
-| 后台 | `/admin` |
-| 首页设置 | `/admin/settings/general`（表单：首页标题/介绍/导航） |
-| 政策解读 | `/admin/content?model=seo_article` |
-| 微信文章 | `/admin/content?model=wechat_article` |
-| 城市正文 | `/admin/content?model=seo_city_page` |
-
----
-
-## 说明
-
-- **D1 / R2 / KV**：SonicJS 标准绑定，一键部署会自动创建（无需手填 ID）。  
-- **INDEXNOW_KEY**：可选，部署脚本会自动生成；不填也不影响站点。  
-- 更新代码：推送到 `main` 后，若已连接 Git，Cloudflare 会自动再部署。  
+| 前台 | 路径 | 后台 | 路径 |
+|------|------|------|------|
+| 首页 | `/` | 注册 | `/auth/register` |
+| 政策 | `/news` | 登录 | `/auth/login` |
+| 微信 | `/wechat` | 后台 | `/admin` |
+| 城市 | `/city/北京` | 首页设置 | `/admin/settings/general` |
+| 咨询 | `/contact` | 城市正文 | `/admin/content?model=seo_city_page` |
+| 状态 | `/status` | 微信文章 | `/admin/content?model=wechat_article` |
