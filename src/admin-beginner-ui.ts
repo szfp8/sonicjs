@@ -13,14 +13,14 @@ const script = `
 
   var menu = [
     { text: '网站首页', href: '/', icon: '⌂' },
-    { text: '网站概况', href: '/admin/content', icon: '📊' },
+    { text: '首页设置', href: '/admin/settings/general#home', icon: '🏠' },
     { text: '内容管理', href: '/admin/content', icon: '📝' },
     { text: '网站资讯', href: '/admin/content?model=blog_post', icon: '📄' },
     { text: '政策解读 / SEO资讯', href: '/admin/content?model=seo_article', icon: '📰' },
+    { text: '微信文章', href: '/admin/content?model=wechat_article', icon: '💬' },
     { text: 'SEO城市页面', href: '/admin/content?model=seo_city_page', icon: '📍' },
     { text: 'SEO设置', href: '/admin/settings/general#seo', icon: '🔎' },
     { text: '获客设置', href: '/admin/settings/general#lead', icon: '☎' },
-    { text: '全国城市SEO', href: '/admin/content?model=seo_city_page', icon: '🗺' },
     { text: '搜索引擎收录', href: '/sitemap.xml', icon: '🚀' },
     { text: '网站用户', href: '/admin/users', icon: '👤' },
     { text: '网站设置', href: '/admin/settings/general', icon: '⚙' },
@@ -90,16 +90,16 @@ const script = `
     guide.className = 'tax-seo-settings-guide';
     guide.innerHTML =
       '<h4>⚙ 财税SEO网站设置中心</h4>' +
-      '<p>小白模式：先完成基础资料，再设置SEO和获客。下面入口使用现有 SonicJS 设置存储，不新增D1表。</p>' +
+      '<p>小白模式：先改「首页设置」，再填 SEO / 获客。城市正文请到「SEO城市页面」发布。</p>' +
       '<div class="tax-seo-setting-grid">' +
-        '<div class="tax-seo-setting-card"><b>① 网站基础信息</b><span>网站名称、管理员邮箱、网站描述、时区。</span><a href="/admin/settings/general">进入基础设置 →</a></div>' +
+        '<div class="tax-seo-setting-card"><b>① 首页设置</b><span>站点名称、首页标题、介绍、导航文案、模块开关。</span><a href="/admin/settings/general#home">进入首页设置 →</a></div>' +
         '<div class="tax-seo-setting-card"><b>② SEO设置</b><span>SEO标题、关键词、描述、规范网址和Robots。</span><a href="/admin/settings/general#seo">进入SEO设置 →</a></div>' +
         '<div class="tax-seo-setting-card"><b>③ 获客设置</b><span>联系电话、微信、线索入口和合规提示。</span><a href="/admin/settings/general#lead">进入获客设置 →</a></div>' +
-        '<div class="tax-seo-setting-card"><b>④ 全国城市SEO</b><span>管理全国城市落地页和城市关键词。</span><a href="/admin/content?model=seo_city_page">管理城市页面 →</a></div>' +
-        '<div class="tax-seo-setting-card"><b>⑤ 内容发布</b><span>网站资讯、政策解读和SEO资讯。</span><a href="/admin/content">进入内容管理 →</a></div>' +
-        '<div class="tax-seo-setting-card"><b>⑥ 收录工具</b><span>Sitemap、Robots和IndexNow入口。</span><a href="/sitemap.xml" target="_blank">查看Sitemap →</a></div>' +
+        '<div class="tax-seo-setting-card"><b>④ 城市页正文</b><span>后台发布「SEO城市页面」，前台 /city/城市名 优先显示。</span><a href="/admin/content?model=seo_city_page">管理城市页面 →</a></div>' +
+        '<div class="tax-seo-setting-card"><b>⑤ 微信文章</b><span>公众号推送文章列表与跳转原文。</span><a href="/admin/content?model=wechat_article">管理微信文章 →</a></div>' +
+        '<div class="tax-seo-setting-card"><b>⑥ 政策解读</b><span>来源 + 原创解读 + 企业实际价值。</span><a href="/admin/content?model=seo_article">管理政策解读 →</a></div>' +
       '</div>' +
-      '<div class="tax-seo-status">✓ 当前版本不新增D1表、不执行迁移；只有保存设置时才写入现有设置文档。</div>';
+      '<div class="tax-seo-status">✓ 首页/SEO/获客写入现有设置文档；城市与文章走内容集合，发布后前台可见。</div>';
     content.insertBefore(guide, content.firstChild);
 
     var labels = document.querySelectorAll('#settings-content label');
@@ -115,17 +115,6 @@ const script = `
     setText('General Settings','网站基础设置');
     setText('Configure basic application settings and preferences.','填写网站名称、描述和基础运行信息');
     setText('Save Changes','保存网站设置');
-    setText('Settings','网站设置');
-    setText('Manage your application settings and preferences','管理网站基础信息与运行设置');
-
-    var nameInput=document.querySelector('#settings-content input[name="siteName"]');
-    var descInput=document.querySelector('#settings-content textarea[name="siteDescription"]');
-    if(nameInput && (!nameInput.value || nameInput.value==='SonicJS AI')) nameInput.value='全国财税发票服务';
-    if(descInput && (!descInput.value || descInput.value==='A modern headless CMS powered by AI')) descInput.value='提供合法合规的财税、发票及税务咨询服务信息，覆盖全国城市，为个人和企业提供便捷的财税服务咨询。';
-    var timezone=document.querySelector('#settings-content select[name="timezone"]');
-    if(timezone && timezone.querySelector('option[value="Asia/Shanghai"]')) timezone.value='Asia/Shanghai';
-    var language=document.querySelector('#settings-content select[name="language"]');
-    if(language && language.querySelector('option[value="zh"]')) language.value='zh';
   }
 
   function apiPanel(title, hint, endpoint, fields) {
@@ -147,12 +136,26 @@ const script = `
       ev.preventDefault();
       var msg=panel.querySelector('.tax-seo-msg'); msg.textContent='保存中…';
       var data={}; Array.prototype.forEach.call(form.elements,function(el){if(!el.name)return; data[el.name]=el.type==='checkbox'?el.checked:el.value;});
-      fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(r){return r.json().then(function(x){return {ok:r.ok,data:x};});}).then(function(x){msg.textContent=x.ok?'✓ 已保存':('保存失败：'+(x.data.error||'请重试'));}).catch(function(){msg.textContent='保存失败，请重试';});
+      fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(r){return r.json().then(function(x){return {ok:r.ok,data:x};});}).then(function(x){msg.textContent=x.ok?'✓ 已保存，请打开前台首页查看':('保存失败：'+(x.data.error||'请重试'));}).catch(function(){msg.textContent='保存失败，请重试';});
     });
   }
 
   function buildSeoAndLeadPanels() {
     if (!location.pathname.startsWith('/admin/settings/')) return;
+    apiPanel('🏠 首页设置','改前台首页的站点名、大标题、介绍、合规提示和导航文字。保存后刷新前台 / 即可看到。','/admin/settings/api/home',[
+      {name:'siteName',label:'站点名称（页头）',placeholder:'全国财税发票服务'},
+      {name:'homeTitle',label:'首页大标题',placeholder:'全国发票与财税服务',full:true},
+      {name:'homeIntro',label:'首页介绍',type:'textarea',full:true,placeholder:'围绕企业日常经营中的发票、税务申报……'},
+      {name:'homeNotice',label:'合规提示',type:'textarea',full:true,placeholder:'仅接受真实交易和合法业务场景……'},
+      {name:'navHome',label:'导航·首页',placeholder:'首页'},
+      {name:'navNews',label:'导航·政策解读',placeholder:'政策解读'},
+      {name:'navWechat',label:'导航·微信文章',placeholder:'微信文章'},
+      {name:'navContact',label:'导航·提交咨询',placeholder:'提交咨询'},
+      {name:'navSearch',label:'导航·搜索',placeholder:'搜索'},
+      {name:'showCities',label:'首页显示城市入口',type:'checkbox'},
+      {name:'showNewsBlock',label:'首页显示政策解读区块',type:'checkbox'},
+      {name:'showWechatBlock',label:'首页显示微信文章区块',type:'checkbox'}
+    ]);
     apiPanel('🔎 SEO设置','设置首页和城市页面使用的基础SEO信息。保存后写入现有设置文档，不增加数据库表。','/admin/settings/api/seo',[
       {name:'seoTitle',label:'SEO标题',placeholder:'全国财税发票服务｜财税与发票咨询',full:true},
       {name:'seoKeywords',label:'SEO关键词',placeholder:'发票,财税,税务咨询,增值税发票'},
@@ -175,10 +178,10 @@ const script = `
     var content=main && (main.querySelector('.grow') || main.lastElementChild);
     if(!content || content.querySelector('[data-tax-seo-shell]')) return;
     var shell=document.createElement('div'); shell.setAttribute('data-tax-seo-shell','1');
-    shell.innerHTML='<div class="tax-seo-brand"><div class="tax-seo-brand-icon">税</div><div><div class="tax-seo-brand-title">财税SEO网站管理后台</div><div class="tax-seo-brand-sub">小白操作模式 · 内容、SEO城市、获客与网站设置统一管理</div></div></div>';
+    shell.innerHTML='<div class="tax-seo-brand"><div class="tax-seo-brand-icon">税</div><div><div class="tax-seo-brand-title">财税SEO网站管理后台</div><div class="tax-seo-brand-sub">小白操作 · 首页设置 / 政策 / 微信 / 城市页 / 获客</div></div></div>';
     var quick=document.createElement('div'); quick.className='tax-seo-quick';
-    quick.innerHTML=menu.slice(1,11).map(function(item){
-      var desc=item.text==='内容管理'?'管理网站文章':item.text==='网站资讯'?'普通网站资讯':item.text==='政策解读 / SEO资讯'?'来源 + 原创解读 + 企业实际价值':item.text==='SEO城市页面'?'全国城市SEO落地页':item.text==='SEO设置'?'设置标题、关键词、描述':'查看或管理网站功能';
+    quick.innerHTML=menu.slice(1,10).map(function(item){
+      var desc=item.text==='首页设置'?'改首页标题与导航':item.text==='微信文章'?'公众号推送文章':item.text==='政策解读 / SEO资讯'?'来源+解读+价值':item.text==='SEO城市页面'?'城市页自定义正文':item.text==='内容管理'?'全部内容集合':'管理网站功能';
       return '<a href="'+item.href+'"><strong>'+item.icon+' '+item.text+'</strong><span>'+desc+'</span></a>';
     }).join('');
     shell.appendChild(quick); content.insertBefore(shell,content.firstChild);
@@ -192,7 +195,7 @@ const script = `
       var el=findText(label); if(el){var row=el.closest('a,button,span'); if(row&&row.parentElement) row.parentElement.style.display='none';}
     });
     setText('Content','内容管理'); setText('Users','网站用户'); setText('Plugins','系统工具'); setText('Settings','网站设置'); setText('Docs','帮助文档');
-    setText('Manage and organize your content items','管理网站内容：文章、政策解读和SEO城市页面');
+    setText('Manage and organize your content items','管理网站内容：文章、政策解读、微信文章和SEO城市页面');
     setText('Model','内容类型'); setText('All Models','全部内容'); setText('Bulk Actions','批量操作'); setText('Showing','当前显示'); setText('Per page','每页数量');
   }
 
