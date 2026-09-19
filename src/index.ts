@@ -36,27 +36,70 @@ registerCollections([
 ]);
 
 /**
- * Hardening for one-click CF deploys:
- * - Remove organization plugin (tenant tables are for future multi-tenant;
- *   partial schemas break sign-in with Drizzle mismatch).
- * - Force validateSchema: false so missing optional tenant columns never
- *   block register/login on a fresh D1.
+ * Fix Better Auth options from @sonicjs-cms/core for one-click CF deploys.
+ *
+ * Core bug: organization plugin maps organizationId -> "tenant_id" (SQL column).
+ * Drizzle adapter resolves BA fields to Drizzle *property keys* (camelCase),
+ * so the map must be organizationId -> "tenantId". Wrong maps cause:
+ *   BetterAuthError: Drizzle schema mismatch Missing columns ... tenant_id
+ * even when D1 already has the column.
+ *
+ * Also force validateSchema:false — core org tables use notNull timestamps
+ * without $defaultFn; BA never writes those on insert.
  */
 function fixBetterAuthOptions(opts: any): any {
   const pluginsIn = Array.isArray(opts.plugins) ? opts.plugins : [];
-  const plugins = pluginsIn.filter((plugin: any) => {
+
+  const plugins = pluginsIn.map((plugin: any) => {
     const id = String(plugin?.id || plugin?.name || '').toLowerCase();
-    return id !== 'organization' && id !== 'organizations' && id !== 'org';
+    if (id !== 'organization' && id !== 'organizations') return plugin;
+
+    // Prefer mutating the live plugin schema object (BA organization plugin)
+    const schema = plugin.schema || plugin.options?.schema || {};
+    const fixModel = (block: any) => {
+      if (!block || typeof block !== 'object') return block;
+      const fields = { ...(block.fields || {}) };
+      // Column name was wrong; property key is correct for drizzle adapter
+      if (fields.organizationId === 'tenant_id' || fields.organizationId === 'organizationId') {
+        fields.organizationId = 'tenantId';
+      }
+      if (!fields.organizationId) {
+        fields.organizationId = 'tenantId';
+      }
+      return { ...block, fields };
+    };
+
+    const nextSchema = {
+      ...schema,
+      organization: schema.organization
+        ? { ...schema.organization, modelName: schema.organization.modelName || 'auth_tenant' }
+        : schema.organization,
+      member: fixModel(schema.member || { modelName: 'auth_tenant_member' }),
+      invitation: fixModel(schema.invitation || { modelName: 'auth_tenant_invitation' }),
+      team: fixModel(schema.team || { modelName: 'auth_tenant_team' }),
+    };
+
+    if (plugin.schema) {
+      return { ...plugin, schema: nextSchema };
+    }
+    if (plugin.options) {
+      return { ...plugin, options: { ...plugin.options, schema: nextSchema } };
+    }
+    return { ...plugin, schema: nextSchema };
   });
+
+  // Mutate in place so nested references from withCloudflare still see the flag
+  if (!opts.advanced) opts.advanced = {};
+  if (!opts.advanced.database) opts.advanced.database = {};
+  opts.advanced.database.validateSchema = false;
 
   return {
     ...opts,
     plugins,
     advanced: {
-      ...(opts.advanced || {}),
+      ...opts.advanced,
       database: {
-        ...(opts.advanced?.database || {}),
-        // Critical: do not fail login when tenant/org columns differ slightly
+        ...opts.advanced.database,
         validateSchema: false,
       },
     },
