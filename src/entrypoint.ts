@@ -1,20 +1,23 @@
 import worker from './index';
 import { bootstrapDatabase, ensureAuthSecrets, type D1Like } from './bootstrap';
 import { handleEnhancedSeoRequest } from './seo/enhanced';
+import { publicSafeErrorDetail, withSecurityHeaders } from './security';
 
 type RuntimeEnv = Record<string, unknown> & {
   DB?: D1Like;
   MEDIA_BUCKET?: unknown;
-  CACHE_KV?: unknown;
+  CACHE_KV?: { get: (k: string) => Promise<string | null>; put: (k: string, v: string, o?: { expirationTtl?: number }) => Promise<void> };
   JWT_SECRET?: string;
   BETTER_AUTH_SECRET?: string;
 };
 
 function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data, null, 2), {
-    status,
-    headers: { 'content-type': 'application/json; charset=utf-8' },
-  });
+  return withSecurityHeaders(
+    new Response(JSON.stringify(data, null, 2), {
+      status,
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+    }),
+  );
 }
 
 function setupPage(env: RuntimeEnv): Response {
@@ -51,12 +54,15 @@ function setupPage(env: RuntimeEnv): Response {
   </main>
 </body>
 </html>`;
-  return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8' } });
+  return withSecurityHeaders(new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8' } }));
 }
 
 function errorPage(message: string, detail?: string): Response {
   const safe = String(message || 'Unknown error').slice(0, 500);
-  const extra = detail ? `<pre style="white-space:pre-wrap;background:#1e293b;padding:12px;border-radius:8px;color:#fca5a5;font-size:12px">${detail.replace(/</g, '&lt;').slice(0, 2000)}</pre>` : '';
+  const safeDetail = publicSafeErrorDetail(detail, true);
+  const extra = safeDetail
+    ? `<pre style="white-space:pre-wrap;background:#1e293b;padding:12px;border-radius:8px;color:#fca5a5;font-size:12px">${safeDetail.replace(/</g, '&lt;')}</pre>`
+    : '';
   const html = `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>服务暂时不可用</title>
@@ -64,9 +70,11 @@ function errorPage(message: string, detail?: string): Response {
 </head><body><main>
 <h1>前台暂时打不开</h1>
 <p>${safe}</p>${extra}
-<p>请先打开 <a href="/status">/status</a> 查看绑定与迁移状态，并把结果发回排查。</p>
+<p>请先打开 <a href="/status">/status</a> 查看绑定与迁移状态。</p>
 </main></body></html>`;
-  return new Response(html, { status: 500, headers: { 'content-type': 'text/html; charset=utf-8' } });
+  return withSecurityHeaders(
+    new Response(html, { status: 500, headers: { 'content-type': 'text/html; charset=utf-8' } }),
+  );
 }
 
 async function prepareEnv(env: RuntimeEnv): Promise<RuntimeEnv> {
@@ -97,12 +105,12 @@ export default {
         if (runtimeEnv.DB) {
           try {
             const row = await runtimeEnv.DB.prepare(
-              "SELECT name FROM sqlite_master WHERE type='table' AND name='auth_user'"
+              "SELECT name FROM sqlite_master WHERE type='table' AND name='auth_user'",
             ).first();
             migrated = Boolean(row);
           } catch (error) {
             migrated = false;
-            migrateError = String((error as Error)?.message || error);
+            migrateError = String((error as Error)?.message || error).slice(0, 120);
           }
         }
         return json({
@@ -124,9 +132,8 @@ export default {
         return setupPage(runtimeEnv);
       }
 
-      // Front pages should not hard-fail when CMS backend has issues.
       try {
-        return await handleEnhancedSeoRequest(request, runtimeEnv as never, async () => {
+        const response = await handleEnhancedSeoRequest(request, runtimeEnv as never, async () => {
           try {
             return await worker.fetch(request, runtimeEnv, ctx);
           } catch (error) {
@@ -137,10 +144,12 @@ export default {
             );
           }
         });
+        return withSecurityHeaders(response);
       } catch (error) {
         console.error('[enhanced]', error);
         try {
-          return await worker.fetch(request, runtimeEnv, ctx);
+          const fallback = await worker.fetch(request, runtimeEnv, ctx);
+          return withSecurityHeaders(fallback);
         } catch (inner) {
           return errorPage(
             '前台与后台均处理失败。',
