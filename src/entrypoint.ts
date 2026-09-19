@@ -77,7 +77,7 @@ function errorPage(message: string, detail?: string): Response {
   );
 }
 
-async function prepareEnv(env: RuntimeEnv): Promise<RuntimeEnv> {
+async function prepareEnv(env: RuntimeEnv, request?: Request): Promise<RuntimeEnv> {
   if (env.DB) {
     try {
       await bootstrapDatabase(env.DB);
@@ -86,7 +86,21 @@ async function prepareEnv(env: RuntimeEnv): Promise<RuntimeEnv> {
     }
   }
   try {
-    return await ensureAuthSecrets(env);
+    const next = await ensureAuthSecrets(env);
+
+    // Better Auth must use the exact origin the browser is visiting.  An empty
+    // BETTER_AUTH_URL can work on workers.dev but can produce an origin/cookie
+    // mismatch after a custom domain is attached (registration may succeed while
+    // the following sign-in session is rejected or not persisted).
+    // Keep an explicitly configured URL, otherwise derive it from this request.
+    if (request && !String(next.BETTER_AUTH_URL || '').trim()) {
+      next.BETTER_AUTH_URL = new URL(request.url).origin;
+    }
+    if (request && !String(next.SITE_URL || '').trim()) {
+      next.SITE_URL = new URL(request.url).origin;
+    }
+
+    return next;
   } catch (error) {
     console.warn('[bootstrap] ensureAuthSecrets failed:', error);
     return env;
@@ -97,7 +111,7 @@ export default {
   async fetch(request: Request, env: RuntimeEnv, ctx: ExecutionContext) {
     try {
       const url = new URL(request.url);
-      const runtimeEnv = await prepareEnv(env);
+      const runtimeEnv = await prepareEnv(env, request);
 
       if (url.pathname === '/status' || url.pathname === '/health') {
         let migrated = false;
