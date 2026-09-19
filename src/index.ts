@@ -35,36 +35,19 @@ registerCollections([
   wechatArticlesCollection,
 ]);
 
+/**
+ * Hardening for one-click CF deploys:
+ * - Remove organization plugin (tenant tables are for future multi-tenant;
+ *   partial schemas break sign-in with Drizzle mismatch).
+ * - Force validateSchema: false so missing optional tenant columns never
+ *   block register/login on a fresh D1.
+ */
 function fixBetterAuthOptions(opts: any): any {
   const pluginsIn = Array.isArray(opts.plugins) ? opts.plugins : [];
-  const plugins = pluginsIn
-    .filter((plugin: any) => {
-      const id = String(plugin?.id || plugin?.name || '');
-      return id !== 'organization' && id !== 'organizations';
-    })
-    .map((plugin: any) => {
-      if (String(plugin?.id || '') !== 'organization') return plugin;
-      const schema = plugin.options?.schema ?? {};
-      const fixFields = (block: any) => ({
-        ...block,
-        fields: {
-          ...(block?.fields || {}),
-          organizationId: 'tenantId',
-        },
-      });
-      return {
-        ...plugin,
-        options: {
-          ...plugin.options,
-          schema: {
-            ...schema,
-            member: fixFields(schema.member),
-            invitation: fixFields(schema.invitation),
-            team: fixFields(schema.team),
-          },
-        },
-      };
-    });
+  const plugins = pluginsIn.filter((plugin: any) => {
+    const id = String(plugin?.id || plugin?.name || '').toLowerCase();
+    return id !== 'organization' && id !== 'organizations' && id !== 'org';
+  });
 
   return {
     ...opts,
@@ -73,6 +56,7 @@ function fixBetterAuthOptions(opts: any): any {
       ...(opts.advanced || {}),
       database: {
         ...(opts.advanced?.database || {}),
+        // Critical: do not fail login when tenant/org columns differ slightly
         validateSchema: false,
       },
     },
