@@ -19,6 +19,7 @@ import {
 import type { D1Database } from '@cloudflare/workers-types';
 import './user-profile.model';
 import './admin-beginner-ui';
+import './seo/settings-extra';
 
 import blogPostsCollection from './collections/blog-posts.collection';
 import seoArticlesCollection from './collections/seo-articles.collection';
@@ -34,20 +35,6 @@ registerCollections([
   wechatArticlesCollection,
 ]);
 
-/**
- * Fix Better Auth organization plugin field mapping.
- *
- * @sonicjs-cms/core maps organizationId → "tenant_id" (SQL name).
- * Drizzle schema uses JS property `tenantId` → column `tenant_id`.
- * Better Auth schema validation expects the **Drizzle property key** (`tenantId`),
- * so mapping to "tenant_id" causes:
- *   Missing columns: auth_tenant_member.tenant_id
- *   Required columns BA won't write: tenantId / updatedAt
- * and blocks login.
- *
- * This SEO site does not need multi-tenant orgs — strip the organization plugin.
- * If a future core version re-injects it, correct the field map as a fallback.
- */
 function fixBetterAuthOptions(opts: any): any {
   const pluginsIn = Array.isArray(opts.plugins) ? opts.plugins : [];
   const plugins = pluginsIn
@@ -62,7 +49,6 @@ function fixBetterAuthOptions(opts: any): any {
         ...block,
         fields: {
           ...(block?.fields || {}),
-          // Drizzle property key, NOT the SQL column string
           organizationId: 'tenantId',
         },
       });
@@ -87,7 +73,6 @@ function fixBetterAuthOptions(opts: any): any {
       ...(opts.advanced || {}),
       database: {
         ...(opts.advanced?.database || {}),
-        // Never block login on schema-check noise in production SEO deploy
         validateSchema: false,
       },
     },
