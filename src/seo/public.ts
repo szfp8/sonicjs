@@ -224,11 +224,14 @@ header a{color:#fff;text-decoration:none;margin-right:12px}
 .lang a{color:#cfe0ff;font-size:13px}
 .nav{margin-top:10px}.nav a{margin-right:14px}
 main{max-width:1180px;margin:auto;padding:28px 18px}h1,h2{line-height:1.35}
-.hero{background:#fff;border-radius:16px;padding:30px;box-shadow:0 6px 24px #10204012;margin-bottom:22px}
+.hero{background:#fff;border-radius:18px;padding:30px;box-shadow:0 8px 30px #10204012;margin-bottom:22px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.city{display:block;background:#fff;padding:12px;border-radius:10px;text-decoration:none;color:#0b3b82;border:1px solid #e7ebf2}
-.btn{display:inline-block;background:#0b3b82;color:#fff;padding:11px 18px;border-radius:9px;text-decoration:none;border:0}
+.city{display:flex;flex-direction:column;gap:3px;background:#fff;padding:14px;border-radius:12px;text-decoration:none;color:#0b3b82;border:1px solid #e7ebf2;transition:.15s}.city:hover{transform:translateY(-2px);box-shadow:0 8px 20px #10204014}.city span{font-size:12px;color:#667085}
+.btn{display:inline-block;background:#0b3b82;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;border:0;font-weight:700;cursor:pointer}.btn-light{background:#fff;color:#0b3b82;border:1px solid #dce5f3}
 .muted{color:#667085}.notice{background:#fff8e6;border-left:4px solid #e6a700;padding:14px 16px;border-radius:8px}
+.home-hero{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,.7fr);gap:24px;padding:42px 34px;border-radius:22px;background:linear-gradient(135deg,#0b3b82,#1765bd);color:#fff;box-shadow:0 18px 50px #0b3b8228;margin-bottom:28px}.hero-copy h1{font-size:clamp(34px,5vw,54px);margin:10px 0 14px}.hero-desc{font-size:18px;max-width:760px;color:#e9f2ff}.eyebrow{display:inline-block;font-size:12px;letter-spacing:1.5px;font-weight:800;color:#5b8fd4}.home-hero .eyebrow{color:#bcd8ff}.hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin:22px 0}.home-search{display:flex;max-width:720px;margin-top:18px}.home-search input{flex:1;min-width:0;padding:14px 16px;border:0;border-radius:10px 0 0 10px;font-size:15px}.home-search button{padding:0 22px;border:0;border-radius:0 10px 10px 0;background:#f0b429;color:#172033;font-weight:800}.hero-card{background:#fff;color:#172033;border-radius:18px;padding:24px;align-self:stretch;display:flex;flex-direction:column;justify-content:center}.hero-card-title{font-size:13px;font-weight:800;color:#667085}.tag-list{display:flex;flex-wrap:wrap;gap:8px;margin:15px 0}.tag-list span{background:#eef5ff;color:#0b3b82;padding:7px 10px;border-radius:999px;font-size:13px;font-weight:700}.hero-card-note{font-size:13px;color:#667085;border-top:1px solid #e7ebf2;padding-top:14px}.home-section{margin:28px 0;padding:32px;background:#fff;border-radius:20px;box-shadow:0 8px 28px #1020400c}.section-head{display:flex;justify-content:space-between;gap:25px;align-items:end;margin-bottom:22px}.section-head h2{font-size:30px;margin:6px 0 0}.section-head>p{max-width:520px;color:#667085;margin:0}.service-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.service-card{padding:20px;border:1px solid #e7ebf2;border-radius:15px;background:#fbfcfe}.service-icon{width:30px;height:30px;border-radius:50%;background:#eaf3ff;color:#0b3b82;display:grid;place-items:center;font-weight:900}.service-card h3{margin:14px 0 7px}.service-card p{margin:0;color:#667085;font-size:14px}.city-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.split-section{display:grid;grid-template-columns:1.3fr .7fr;gap:30px;align-items:center}.info-panel{background:#f5f8fd;padding:22px;border-radius:15px}.info-panel p{font-weight:800;color:#0b3b82}.info-panel small{color:#667085}.light-section{background:#f1f6fc}.trust-section{display:flex;justify-content:space-between;gap:25px;align-items:center;background:#fff8e6;border:1px solid #f2dfaa}.trust-section h2{margin:5px 0}.footer{margin-top:40px;padding:25px 0;color:#667085;font-size:14px}
+@media(max-width:800px){.home-hero{grid-template-columns:1fr;padding:28px 22px}.service-grid,.city-grid{grid-template-columns:repeat(2,1fr)}.section-head,.split-section,.trust-section{display:block}.section-head>p{margin-top:10px}.trust-section .btn{margin-top:16px}.hero-card{min-height:180px}}
+@media(max-width:520px){.service-grid,.city-grid{grid-template-columns:1fr}.home-search input{font-size:14px}.home-search button{padding:0 15px}.hero-copy h1{font-size:34px}}
 .form{display:grid;gap:12px;max-width:620px}.form input,.form textarea{padding:12px;border:1px solid #d7dce5;border-radius:8px;font-size:16px}
 .footer{margin-top:40px;padding:25px 0;color:#667085;font-size:14px}
 .prose p{margin:0.6em 0}
@@ -331,21 +334,76 @@ async function home(request: Request, env: SeoEnv, lang: LanguageCode) {
   const m = t(lang);
   const homeCfg = await loadHomeSettings(env, lang);
   const q = lang === 'zh' ? '' : `?lang=${lang}`;
-  const links = SEO_CITIES.map((city) => `<a class="city" href="${cityUrl(request, city.name)}">${esc(city.name)}${lang === 'zh' ? '发票/财税服务' : ''}</a>`).join('');
+  const cityLinks = SEO_CITIES.map((city) =>
+    `<a class="city" href="${cityUrl(request, city.name)}"><strong>${esc(city.name)}</strong><span>${lang === 'zh' ? '开票 · 发票 · 税务 · 财税' : 'Invoice · Tax · Finance'}</span></a>`
+  ).join('');
+
+  const serviceItems = lang === 'zh'
+    ? [
+        ['增值税发票咨询', '发票类型、开具流程、材料与合规注意事项'],
+        ['企业税务咨询', '增值税、企业所得税及日常税务流程咨询'],
+        ['财税流程咨询', '企业经营中的记账、申报、发票与税务流程'],
+        ['城市开票服务', '按城市进入独立页面，查看当地服务与办理信息'],
+      ]
+    : [
+        ['Invoice consulting', 'Invoice types, process, documents and compliance guidance'],
+        ['Tax consulting', 'VAT, corporate tax and routine tax process guidance'],
+        ['Finance process', 'Bookkeeping, filing, invoicing and finance workflow guidance'],
+        ['City service portals', 'Dedicated city pages with local service information'],
+      ];
+
+  const services = serviceItems.map(([title, body]) =>
+    `<article class="service-card"><div class="service-icon">✓</div><h3>${esc(title)}</h3><p>${esc(body)}</p></article>`
+  ).join('');
+
   const citiesBlock = homeCfg.showCities
-    ? `<section class="hero"><h2>${esc(m.homeCitiesTitle)}</h2><div class="grid">${links}</div></section>`
+    ? `<section class="home-section"><div class="section-head"><div><span class="eyebrow">${lang === 'zh' ? '全国覆盖' : 'NATIONWIDE'}</span><h2>${esc(m.homeCitiesTitle)}</h2></div><p>${lang === 'zh' ? '从城市入口进入对应页面，覆盖“城市 + 开票 / 发票 / 税务 / 财税”等搜索需求。' : 'Enter a city portal for local invoice and tax information.'}</p></div><div class="city-grid">${cityLinks}</div></section>`
     : '';
+
   const newsBlock = homeCfg.showNewsBlock
-    ? `<section class="hero"><h2>${esc(m.homeNewsTitle)}</h2><p>${esc(m.homeNewsBody)}</p><a class="btn" href="${origin}/news${q}">${esc(m.homeNewsBtn)}</a></section>`
+    ? `<section class="home-section split-section"><div><span class="eyebrow">${lang === 'zh' ? '政策资讯' : 'INSIGHTS'}</span><h2>${esc(m.homeNewsTitle)}</h2><p>${esc(m.homeNewsBody)}</p><a class="btn" href="${origin}/news${q}">${esc(m.homeNewsBtn)}</a></div><div class="info-panel"><b>${lang === 'zh' ? '内容标准' : 'CONTENT STANDARD'}</b><p>${lang === 'zh' ? '来源 + 原创解读 + 企业实际价值' : 'Source + original interpretation + business value'}</p><small>${esc(m.policyNotice)}</small></div></section>`
     : '';
+
   const wechatBlock = homeCfg.showWechatBlock
-    ? `<section class="hero"><h2>${esc(m.homeWechatTitle)}</h2><p>${esc(m.homeWechatBody)}</p><a class="btn" href="${origin}/wechat${q}">${esc(m.homeWechatBtn)}</a></section>`
+    ? `<section class="home-section split-section light-section"><div><span class="eyebrow">WECHAT</span><h2>${esc(m.homeWechatTitle)}</h2><p>${esc(m.homeWechatBody)}</p></div><div><a class="btn" href="${origin}/wechat${q}">${esc(m.homeWechatBtn)}</a></div></section>`
     : '';
+
+  const searchBox = `<form class="home-search" action="/search" method="get"><input name="q" aria-label="${esc(m.navSearch)}" placeholder="${lang === 'zh' ? '搜索城市、发票、税务、财税关键词' : 'Search city, invoice or tax keywords'}"><button type="submit">${lang === 'zh' ? '搜索' : 'Search'}</button></form>`;
+
+  const body = `
+<section class="home-hero">
+  <div class="hero-copy">
+    <span class="eyebrow">${lang === 'zh' ? '全国企业与个人财税服务信息平台' : 'NATIONWIDE TAX & INVOICE INFORMATION'}</span>
+    <h1>${esc(homeCfg.homeTitle)}</h1>
+    <p class="hero-desc">${esc(homeCfg.homeIntro)}</p>
+    <div class="hero-actions"><a class="btn" href="${origin}/contact${q}">${esc(m.homeContactBtn)}</a><a class="btn btn-light" href="#cities">${lang === 'zh' ? '选择城市' : 'Choose a city'}</a></div>
+    ${searchBox}
+  </div>
+  <div class="hero-card">
+    <div class="hero-card-title">${lang === 'zh' ? '您可以查询' : 'YOU CAN FIND'}</div>
+    <div class="tag-list"><span>发票</span><span>增值税</span><span>税务</span><span>财税</span><span>开票</span><span>城市服务</span></div>
+    <div class="hero-card-note">${esc(homeCfg.homeNotice)}</div>
+  </div>
+</section>
+
+<section class="home-section services-section">
+  <div class="section-head"><div><span class="eyebrow">${lang === 'zh' ? '服务内容' : 'SERVICES'}</span><h2>${lang === 'zh' ? '发票与财税服务信息' : 'Invoice & Tax Information'}</h2></div><p>${lang === 'zh' ? '围绕真实业务场景提供流程、材料、政策和合规信息。' : 'Clear process, document, policy and compliance information.'}</p></div>
+  <div class="service-grid">${services}</div>
+</section>
+
+<div id="cities">${citiesBlock}</div>
+${newsBlock}
+${wechatBlock}
+
+<section class="home-section trust-section">
+  <div><span class="eyebrow">${lang === 'zh' ? '合规说明' : 'COMPLIANCE'}</span><h2>${lang === 'zh' ? '真实交易，依法依规' : 'Real transactions. Lawful service.'}</h2><p>${esc(homeCfg.homeNotice)}</p></div>
+  <a class="btn" href="${origin}/contact${q}">${esc(m.homeContactBtn)}</a>
+</section>`;
+
   return page(
     `${homeCfg.siteName}｜${homeCfg.homeTitle}`,
     homeCfg.homeIntro.slice(0, 180),
-    `<section class="hero"><h1>${esc(homeCfg.homeTitle)}</h1><p>${esc(homeCfg.homeIntro)}</p><p class="notice">${esc(homeCfg.homeNotice)}</p><a class="btn" href="${origin}/contact${q}">${esc(m.homeContactBtn)}</a></section>
-${citiesBlock}${newsBlock}${wechatBlock}`,
+    body,
     env,
     request,
     lang,
