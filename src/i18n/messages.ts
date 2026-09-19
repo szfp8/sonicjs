@@ -2,21 +2,31 @@ import type { LanguageCode } from './config';
 
 type Messages = {
   siteName: string;
+  siteTagline: string;
   homeTitle: string;
   homeDesc: string;
   homeHeroTitle: string;
+  homeHeroSub: string;
   homeHeroBody: string;
   homeNotice: string;
   homeContactBtn: string;
+  homeSearchPlaceholder: string;
+  homeSearchBtn: string;
   homeCitiesTitle: string;
+  homeHotServices: string;
   homeNewsTitle: string;
   homeNewsBody: string;
   homeNewsBtn: string;
   homeWechatTitle: string;
   homeWechatBody: string;
   homeWechatBtn: string;
+  homeAdvisorTitle: string;
+  homeAdvisorBtn: string;
   navHome: string;
+  navServices: string;
+  navCities: string;
   navNews: string;
+  navAbout: string;
   navWechat: string;
   navContact: string;
   navSearch: string;
@@ -47,35 +57,46 @@ type Messages = {
   interpretation: string;
   businessValue: string;
   policyNotice: string;
+  phoneDisplay: string;
 };
 
 const zh: Messages = {
-  siteName: '全国财税发票服务',
-  homeTitle: '全国城市发票与财税服务',
-  homeDesc: '面向全国企业和个人提供依法依规的发票、税务、财税流程咨询服务，覆盖主要城市。',
-  homeHeroTitle: '全国发票与财税服务',
+  siteName: '财税服务',
+  siteTagline: '专业 · 高效 · 可信赖',
+  homeTitle: '专业财税服务 助力企业发展',
+  homeDesc: '代理记账 · 代开发票 · 税务申报 · 财税咨询，覆盖全国主要城市。',
+  homeHeroTitle: '专业财税服务 助力企业发展',
+  homeHeroSub: '代理记账 · 代开发票 · 税务申报 · 财税咨询',
   homeHeroBody: '围绕企业日常经营中的发票、税务申报、财税流程和合规咨询，提供清晰的办理路径与材料说明。',
   homeNotice: '合规提示：仅接受真实交易和合法业务场景，不提供虚假交易、虚开发票、买卖发票等服务。',
-  homeContactBtn: '提交咨询',
-  homeCitiesTitle: '全国城市服务入口',
-  homeNewsTitle: '政策与实务解读',
-  homeNewsBody: '内容栏目坚持“来源 + 原创解读 + 企业实际价值”，帮助企业理解政策变化与实际办理影响。',
-  homeNewsBtn: '查看财税政策解读',
+  homeContactBtn: '立即咨询',
+  homeSearchPlaceholder: '请输入您想搜索的服务，如：代理记账、发票、税务…',
+  homeSearchBtn: '搜索',
+  homeCitiesTitle: '全国服务城市',
+  homeHotServices: '热门服务',
+  homeNewsTitle: '最新财税资讯',
+  homeNewsBody: '政策解读与实务指南，帮助企业理解办理影响。',
+  homeNewsBtn: '查看更多资讯 →',
   homeWechatTitle: '微信文章',
-  homeWechatBody: '汇总公众号推送的财税、发票相关文章，点击即可跳转微信原文阅读。',
+  homeWechatBody: '汇总公众号推送的财税、发票相关文章。',
   homeWechatBtn: '查看微信文章',
+  homeAdvisorTitle: '专业财税顾问\n1对1解决企业财税问题',
+  homeAdvisorBtn: '立即咨询',
   navHome: '首页',
-  navNews: '政策解读',
+  navServices: '服务项目',
+  navCities: '服务城市',
+  navNews: '财税资讯',
+  navAbout: '关于我们',
   navWechat: '微信文章',
   navContact: '提交咨询',
   navSearch: '搜索',
   newsTitle: '财税政策与发票实务解读',
   newsDesc: '财税政策与发票实务信息，采用来源、原创解读、企业实际价值的结构。',
-  newsEmpty: '暂无已发布文章，请在后台「政策解读 / SEO资讯」中发布内容。',
-  newsReadMore: '阅读全文 →',
+  newsEmpty: '暂无已发布文章，请在后台发布内容。',
+  newsReadMore: '了解更多 →',
   wechatTitle: '微信文章',
-  wechatDesc: '公众号推送的财税、发票相关文章汇总，点击跳转微信原文。',
-  wechatEmpty: '暂无微信文章，请在后台「微信文章」中添加推送内容。',
+  wechatDesc: '公众号推送的财税、发票相关文章汇总。',
+  wechatEmpty: '暂无微信文章。',
   wechatOpenOriginal: '打开微信原文',
   wechatAccount: '公众号',
   contactTitle: '提交财税咨询',
@@ -96,130 +117,76 @@ const zh: Messages = {
   interpretation: '原创解读',
   businessValue: '企业实际价值',
   policyNotice: '本文用于信息参考，具体政策以主管部门最新公开文件为准。',
+  phoneDisplay: '400-123-4567',
 };
 
 const en: Messages = {
-  siteName: 'National Tax & Invoice Services',
-  homeTitle: 'Invoice & Tax Services Across Cities',
-  homeDesc: 'Compliant invoice, tax filing and finance consulting for businesses and individuals nationwide.',
-  homeHeroTitle: 'Nationwide Invoice & Tax Services',
-  homeHeroBody: 'Clear guidance on invoicing, tax filing, finance processes and compliance for day-to-day business.',
-  homeNotice: 'Compliance notice: Only genuine transactions and lawful scenarios. No fake invoices or illegal services.',
+  siteName: 'Tax Services',
+  siteTagline: 'Professional · Efficient · Trusted',
+  homeTitle: 'Professional Tax Services for Business Growth',
+  homeDesc: 'Bookkeeping, invoicing, tax filing and consulting nationwide.',
+  homeHeroTitle: 'Professional Tax Services for Business Growth',
+  homeHeroSub: 'Bookkeeping · Invoicing · Tax filing · Consulting',
+  homeHeroBody: 'Clear guidance on invoicing, tax filing and compliance.',
+  homeNotice: 'Only genuine lawful business. No fake invoices.',
   homeContactBtn: 'Contact us',
-  homeCitiesTitle: 'City service portals',
-  homeNewsTitle: 'Policy & practice insights',
-  homeNewsBody: 'Articles follow “source + original interpretation + business value” to help you act on policy changes.',
-  homeNewsBtn: 'View policy insights',
+  homeSearchPlaceholder: 'Search services, e.g. bookkeeping, invoice…',
+  homeSearchBtn: 'Search',
+  homeCitiesTitle: 'Service cities',
+  homeHotServices: 'Popular services',
+  homeNewsTitle: 'Latest tax insights',
+  homeNewsBody: 'Policy interpretation and practical guides.',
+  homeNewsBtn: 'More insights →',
   homeWechatTitle: 'WeChat articles',
-  homeWechatBody: 'Curated public-account posts on tax and invoicing. Open the original WeChat article with one click.',
-  homeWechatBtn: 'Browse WeChat articles',
+  homeWechatBody: 'Curated public-account posts.',
+  homeWechatBtn: 'Browse WeChat',
+  homeAdvisorTitle: 'Tax advisors\n1-on-1 business support',
+  homeAdvisorBtn: 'Consult now',
   navHome: 'Home',
+  navServices: 'Services',
+  navCities: 'Cities',
   navNews: 'Insights',
+  navAbout: 'About',
   navWechat: 'WeChat',
   navContact: 'Contact',
   navSearch: 'Search',
-  newsTitle: 'Tax policy & invoice practice',
-  newsDesc: 'Policy and practice notes structured as source, interpretation, and business value.',
-  newsEmpty: 'No published articles yet. Publish under “SEO Articles” in admin.',
+  newsTitle: 'Tax policy & practice',
+  newsDesc: 'Source + interpretation + business value.',
+  newsEmpty: 'No articles yet.',
   newsReadMore: 'Read more →',
   wechatTitle: 'WeChat articles',
-  wechatDesc: 'Curated WeChat posts on tax and invoicing. Jump to the original article.',
-  wechatEmpty: 'No WeChat articles yet. Add them under “WeChat Articles” in admin.',
-  wechatOpenOriginal: 'Open original WeChat article',
+  wechatDesc: 'Curated WeChat posts.',
+  wechatEmpty: 'No WeChat articles yet.',
+  wechatOpenOriginal: 'Open original',
   wechatAccount: 'Account',
-  contactTitle: 'Submit a tax inquiry',
-  contactDesc: 'Send your business or personal tax / invoice inquiry.',
+  contactTitle: 'Submit inquiry',
+  contactDesc: 'Send your tax / invoice inquiry.',
   contactSubmit: 'Submit',
-  contactSuccess: 'Submitted successfully',
+  contactSuccess: 'Submitted',
   contactName: 'Name / company',
   contactPhone: 'Phone',
-  contactNeed: 'Describe your real business need',
+  contactNeed: 'Describe your need',
   contactCity: 'City',
-  footer: 'This site only provides lawful tax, invoice and process consulting. Illegal services are refused.',
+  footer: 'Lawful tax and invoice consulting only.',
   language: 'Language',
-  searchPlaceholder: 'Search keywords',
-  searchResults: 'Search results',
-  noResults: 'No matching content.',
-  backHome: 'Back to home',
+  searchPlaceholder: 'Search',
+  searchResults: 'Results',
+  noResults: 'No matches.',
+  backHome: 'Home',
   source: 'Source',
   interpretation: 'Interpretation',
   businessValue: 'Business value',
-  policyNotice: 'For reference only. Always check the latest official announcements.',
+  policyNotice: 'For reference only.',
+  phoneDisplay: '400-123-4567',
 };
 
-const ja: Messages = {
-  ...en,
-  siteName: '全国税務・請求書サービス',
-  homeTitle: '全国都市の請求書・税務サービス',
-  homeHeroTitle: '全国の請求書・税務サービス',
-  navHome: 'ホーム',
-  navNews: '政策解説',
-  navWechat: 'WeChat記事',
-  navContact: 'お問い合わせ',
-  wechatTitle: 'WeChat記事',
-  wechatOpenOriginal: 'WeChat原文を開く',
-  contactSubmit: '送信',
-  backHome: 'ホームへ',
-  language: '言語',
-  footer: '本サイトは適法な税務・請求書・手続き相談のみを提供します。',
-};
+const ja: Messages = { ...en, siteName: '税務サービス', navHome: 'ホーム', language: '言語' };
+const ko: Messages = { ...en, siteName: '세무 서비스', navHome: '홈', language: '언어' };
+const fr: Messages = { ...en, siteName: 'Services fiscaux', navHome: 'Accueil', language: 'Langue' };
+const de: Messages = { ...en, siteName: 'Steuerdienste', navHome: 'Start', language: 'Sprache' };
+const es: Messages = { ...en, siteName: 'Servicios fiscales', navHome: 'Inicio', language: 'Idioma' };
 
-const ko: Messages = {
-  ...en,
-  siteName: '전국 세무·세금계산서 서비스',
-  homeTitle: '전국 도시 세금계산서·세무 서비스',
-  homeHeroTitle: '전국 세금계산서·세무 서비스',
-  navHome: '홈',
-  navNews: '정책 해설',
-  navWechat: '위챗 글',
-  navContact: '문의',
-  wechatTitle: '위챗 글',
-  wechatOpenOriginal: '위챗 원문 열기',
-  contactSubmit: '제출',
-  backHome: '홈으로',
-  language: '언어',
-  footer: '본 사이트는 합법적인 세무·세금계산서·절차 상담만 제공합니다.',
-};
-
-const fr: Messages = {
-  ...en,
-  siteName: 'Services fiscaux et factures',
-  navHome: 'Accueil',
-  navNews: 'Analyses',
-  navWechat: 'WeChat',
-  navContact: 'Contact',
-  language: 'Langue',
-};
-
-const de: Messages = {
-  ...en,
-  siteName: 'Steuer- & Rechnungsdienste',
-  navHome: 'Start',
-  navNews: 'Einblicke',
-  navWechat: 'WeChat',
-  navContact: 'Kontakt',
-  language: 'Sprache',
-};
-
-const es: Messages = {
-  ...en,
-  siteName: 'Servicios fiscales y facturas',
-  navHome: 'Inicio',
-  navNews: 'Análisis',
-  navWechat: 'WeChat',
-  navContact: 'Contacto',
-  language: 'Idioma',
-};
-
-const ALL: Record<LanguageCode, Messages> = {
-  zh,
-  en,
-  ja,
-  ko,
-  fr,
-  de,
-  es,
-};
+const ALL: Record<LanguageCode, Messages> = { zh, en, ja, ko, fr, de, es };
 
 export function t(lang: LanguageCode): Messages {
   return ALL[lang] || zh;
