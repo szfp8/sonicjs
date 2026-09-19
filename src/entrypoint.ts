@@ -9,6 +9,8 @@ type RuntimeEnv = Record<string, unknown> & {
   CACHE_KV?: { get: (k: string) => Promise<string | null>; put: (k: string, v: string, o?: { expirationTtl?: number }) => Promise<void> };
   JWT_SECRET?: string;
   BETTER_AUTH_SECRET?: string;
+  BETTER_AUTH_URL?: string;
+  SITE_URL?: string;
 };
 
 function json(data: unknown, status = 200): Response {
@@ -61,7 +63,7 @@ function errorPage(message: string, detail?: string): Response {
   const safe = String(message || 'Unknown error').slice(0, 500);
   const safeDetail = publicSafeErrorDetail(detail, true);
   const extra = safeDetail
-    ? `<pre style="white-space:pre-wrap;background:#1e293b;padding:12px;border-radius:8px;color:#fca5a5;font-size:12px">${safeDetail.replace(/</g, '&lt;')}</pre>`
+    ? `<pre style="white-space:pre-wrap;background:#1e293b;padding:12px;border-radius:8px;color:#fca5a5;font-size:12px">${safeDetail.replace(/</g, '<')}</pre>`
     : '';
   const html = `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -77,6 +79,14 @@ function errorPage(message: string, detail?: string): Response {
   );
 }
 
+/**
+ * Prepare a complete runtime env for a fresh Cloudflare account deploy.
+ * - Bootstraps D1 tables if missing
+ * - Ensures JWT / Better Auth secrets exist (persisted in D1)
+ * - When BETTER_AUTH_URL / SITE_URL are empty (intentional for one-click),
+ *   derives them from the current request origin so custom domains work
+ *   for both registration and subsequent login (same Origin / Cookie).
+ */
 async function prepareEnv(env: RuntimeEnv, request?: Request): Promise<RuntimeEnv> {
   if (env.DB) {
     try {
@@ -88,11 +98,10 @@ async function prepareEnv(env: RuntimeEnv, request?: Request): Promise<RuntimeEn
   try {
     const next = await ensureAuthSecrets(env);
 
-    // Better Auth must use the exact origin the browser is visiting.  An empty
-    // BETTER_AUTH_URL can work on workers.dev but can produce an origin/cookie
-    // mismatch after a custom domain is attached (registration may succeed while
-    // the following sign-in session is rejected or not persisted).
-    // Keep an explicitly configured URL, otherwise derive it from this request.
+    // Better Auth must use the exact origin the browser is visiting.
+    // Empty BETTER_AUTH_URL works on workers.dev but can produce origin/cookie
+    // mismatch after a custom domain is attached (register succeeds, login fails).
+    // Keep explicit config; otherwise derive from this request.
     if (request && !String(next.BETTER_AUTH_URL || '').trim()) {
       next.BETTER_AUTH_URL = new URL(request.url).origin;
     }
@@ -127,6 +136,8 @@ export default {
             migrateError = String((error as Error)?.message || error).slice(0, 120);
           }
         }
+        const resolvedAuthUrl = String(runtimeEnv.BETTER_AUTH_URL || '').trim() || null;
+        const resolvedSiteUrl = String(runtimeEnv.SITE_URL || '').trim() || null;
         return json({
           ok: Boolean(runtimeEnv.DB) && migrated && Boolean(runtimeEnv.JWT_SECRET),
           worker: 'sonicjs',
@@ -139,6 +150,13 @@ export default {
           },
           migrated,
           migrateError: migrateError || undefined,
+          // Debug: shows the origin Better Auth will use for this request
+          auth: {
+            BETTER_AUTH_URL: resolvedAuthUrl,
+            SITE_URL: resolvedSiteUrl,
+            requestOrigin: url.origin,
+            originMatch: resolvedAuthUrl === url.origin,
+          },
         });
       }
 
