@@ -2,7 +2,7 @@
   "name": "sonicjs",
   "version": "1.0.0",
   "private": true,
-  "description": "全国财税发票 SEO — Cloudflare Workers + D1 + R2 + KV",
+  "description": "全国财税发票 SEO — Cloudflare Workers + D1 + R2 + KV 一键部署",
   "type": "module",
   "scripts": {
     "build": "echo ready",
@@ -16,7 +16,7 @@
     "drizzle-orm": "^0.44.7",
     "hono": "^4.10.7",
     "zod": "^4.1.13",
-    "wrangler": "^4.134.0"
+    "wrangler": "^4.45.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260724.1",

@@ -1,10 +1,14 @@
 # 全国财税发票 SEO — Cloudflare Workers 一键部署配置
 #
-# 重要：
-# 这里故意不填写 D1/KV/R2 的 resource ID。
-# Cloudflare 的 Deploy to Cloudflare / Workers Builds 会根据这些 bindings
-# 自动创建资源并在部署时注入实际 ID。不要再用脚本执行 d1 create / kv create / r2 create。
+# 设计目标：GitHub 仓库可直接点 Deploy to Cloudflare 按钮完成：
+#   1) 自动 provision D1 / R2 / KV（无需 database_id / namespace id / 手动 create）
+#   2) 部署 Worker
+#   3) 应用 D1 migrations（失败时由运行时 bootstrap 兜底）
+#   4) 后台登录不需要用户手动配置 JWT / Better Auth Secret
 #
+# 不要在本文件填写任何 Cloudflare 账号专属 ID。
+# 不要在仓库里放 CLOUDFLARE_API_TOKEN。
+
 name = "sonicjs"
 main = "src/entrypoint.ts"
 compatibility_date = "2026-09-18"
@@ -12,17 +16,18 @@ compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 preview_urls = false
 
-# D1：只给默认名称，Deploy to Cloudflare 会自动创建并绑定。
+# D1：只声明 binding + 默认名称。Deploy to Cloudflare / Wrangler 自动 provision 时会创建并绑定。
 [[d1_databases]]
 binding = "DB"
 database_name = "sonicjs"
 migrations_dir = "migrations"
 
-# R2：省略 bucket_name，让 Cloudflare 自动创建。
+# R2：给出稳定 bucket 名称，便于一键创建；不要写账号专属 ID。
 [[r2_buckets]]
 binding = "MEDIA_BUCKET"
+bucket_name = "sonicjs-media"
 
-# KV：省略 id，让 Cloudflare 自动创建。
+# KV：只声明 binding，由 Cloudflare 自动创建 namespace。
 [[kv_namespaces]]
 binding = "CACHE_KV"
 
@@ -33,7 +38,7 @@ SITE_URL = ""
 BETTER_AUTH_URL = ""
 CONTACT_PHONE = ""
 CORS_ORIGINS = "*"
-BUCKET_NAME = ""
+BUCKET_NAME = "sonicjs-media"
 
 [triggers]
 crons = ["*/10 * * * *"]
