@@ -79,14 +79,6 @@ function errorPage(message: string, detail?: string): Response {
   );
 }
 
-/**
- * Prepare a complete runtime env for a fresh Cloudflare account deploy.
- * - Bootstraps D1 tables if missing
- * - Ensures JWT / Better Auth secrets exist (persisted in D1)
- * - When BETTER_AUTH_URL / SITE_URL are empty (intentional for one-click),
- *   derives them from the current request origin so custom domains work
- *   for both registration and subsequent login (same Origin / Cookie).
- */
 async function prepareEnv(env: RuntimeEnv, request?: Request): Promise<RuntimeEnv> {
   if (env.DB) {
     try {
@@ -98,10 +90,6 @@ async function prepareEnv(env: RuntimeEnv, request?: Request): Promise<RuntimeEn
   try {
     const next = await ensureAuthSecrets(env);
 
-    // Better Auth must use the exact origin the browser is visiting.
-    // Empty BETTER_AUTH_URL works on workers.dev but can produce origin/cookie
-    // mismatch after a custom domain is attached (register succeeds, login fails).
-    // Keep explicit config; otherwise derive from this request.
     if (request && !String(next.BETTER_AUTH_URL || '').trim()) {
       next.BETTER_AUTH_URL = new URL(request.url).origin;
     }
@@ -116,6 +104,15 @@ async function prepareEnv(env: RuntimeEnv, request?: Request): Promise<RuntimeEn
   }
 }
 
+async function probeColumn(db: D1Like, table: string, column: string): Promise<boolean> {
+  try {
+    await db.prepare(`SELECT ${column} FROM ${table} LIMIT 0`).run();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default {
   async fetch(request: Request, env: RuntimeEnv, ctx: ExecutionContext) {
     try {
@@ -125,6 +122,8 @@ export default {
       if (url.pathname === '/status' || url.pathname === '/health') {
         let migrated = false;
         let migrateError = '';
+        let tenantMemberHasTenantId = false;
+        let tenantInvitationHasTenantId = false;
         if (runtimeEnv.DB) {
           try {
             const row = await runtimeEnv.DB.prepare(
@@ -135,11 +134,22 @@ export default {
             migrated = false;
             migrateError = String((error as Error)?.message || error).slice(0, 120);
           }
+          tenantMemberHasTenantId = await probeColumn(runtimeEnv.DB, 'auth_tenant_member', 'tenant_id');
+          tenantInvitationHasTenantId = await probeColumn(
+            runtimeEnv.DB,
+            'auth_tenant_invitation',
+            'tenant_id',
+          );
         }
         const resolvedAuthUrl = String(runtimeEnv.BETTER_AUTH_URL || '').trim() || null;
         const resolvedSiteUrl = String(runtimeEnv.SITE_URL || '').trim() || null;
+        const tenantOk = tenantMemberHasTenantId && tenantInvitationHasTenantId;
         return json({
-          ok: Boolean(runtimeEnv.DB) && migrated && Boolean(runtimeEnv.JWT_SECRET),
+          ok:
+            Boolean(runtimeEnv.DB) &&
+            migrated &&
+            Boolean(runtimeEnv.JWT_SECRET) &&
+            tenantOk,
           worker: 'sonicjs',
           bindings: {
             DB: Boolean(runtimeEnv.DB),
@@ -150,7 +160,11 @@ export default {
           },
           migrated,
           migrateError: migrateError || undefined,
-          // Debug: shows the origin Better Auth will use for this request
+          tenant: {
+            auth_tenant_member_tenant_id: tenantMemberHasTenantId,
+            auth_tenant_invitation_tenant_id: tenantInvitationHasTenantId,
+            ok: tenantOk,
+          },
           auth: {
             BETTER_AUTH_URL: resolvedAuthUrl,
             SITE_URL: resolvedSiteUrl,
