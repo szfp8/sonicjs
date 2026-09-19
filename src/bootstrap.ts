@@ -54,6 +54,132 @@ async function runSql(db: D1Like, sql: string): Promise<void> {
   }
 }
 
+/** Returns true if table exists and has the given column. */
+async function tableHasColumn(db: D1Like, table: string, column: string): Promise<boolean> {
+  try {
+    const rows = await db.prepare(`PRAGMA table_info(${table})`).first();
+    // PRAGMA via .first() is unreliable for multi-row; use SELECT probe instead
+    await db.prepare(`SELECT ${column} FROM ${table} LIMIT 0`).run();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function tableExists(db: D1Like, table: string): Promise<boolean> {
+  try {
+    const row = await db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?")
+      .bind(table)
+      .first();
+    return Boolean(row);
+  } catch {
+    return false;
+  }
+}
+
+const TENANT_TABLES_SQL = `
+CREATE TABLE IF NOT EXISTS auth_tenant (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  logo TEXT,
+  metadata TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  domain TEXT,
+  notes TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS auth_tenant_member (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'member',
+  email TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS auth_tenant_invitation (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  email TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'member',
+  status TEXT NOT NULL DEFAULT 'pending',
+  expires_at INTEGER NOT NULL,
+  inviter_id TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS auth_tenant_team (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  tenant_id TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_auth_tenant_member_tenant ON auth_tenant_member(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_auth_tenant_member_user ON auth_tenant_member(user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_tenant_invitation_tenant ON auth_tenant_invitation(tenant_id);
+`;
+
+/**
+ * If tenant member/invitation tables exist but lack tenant_id (schema mismatch
+ * that breaks Better Auth login), drop and recreate them. Safe on fresh CF
+ * deploys: these tables are empty until org features are used.
+ */
+async function ensureTenantTables(db: D1Like): Promise<void> {
+  const memberExists = await tableExists(db, 'auth_tenant_member');
+  const invitationExists = await tableExists(db, 'auth_tenant_invitation');
+
+  const memberOk = memberExists ? await tableHasColumn(db, 'auth_tenant_member', 'tenant_id') : false;
+  const invitationOk = invitationExists
+    ? await tableHasColumn(db, 'auth_tenant_invitation', 'tenant_id')
+    : false;
+
+  if ((memberExists && !memberOk) || (invitationExists && !invitationOk)) {
+    console.warn(
+      '[bootstrap] tenant tables missing tenant_id — rebuilding auth_tenant_* tables',
+    );
+    for (const drop of [
+      'DROP TABLE IF EXISTS auth_tenant_team',
+      'DROP TABLE IF EXISTS auth_tenant_invitation',
+      'DROP TABLE IF EXISTS auth_tenant_member',
+      'DROP TABLE IF EXISTS auth_tenant',
+    ]) {
+      try {
+        await runSql(db, drop);
+      } catch (e) {
+        console.warn('[bootstrap] drop tenant table:', String((e as Error)?.message || e).slice(0, 120));
+      }
+    }
+  }
+
+  for (const stmt of splitStatements(TENANT_TABLES_SQL)) {
+    try {
+      await runSql(db, stmt);
+    } catch (error) {
+      console.warn('[bootstrap] tenant sql:', String((error as Error)?.message || error).slice(0, 200));
+    }
+  }
+
+  // Extra repairs for partially-migrated tables
+  for (const stmt of [
+    'ALTER TABLE auth_tenant ADD COLUMN updated_at INTEGER',
+    'ALTER TABLE auth_tenant_member ADD COLUMN tenant_id TEXT',
+    'ALTER TABLE auth_tenant_member ADD COLUMN updated_at INTEGER',
+    'ALTER TABLE auth_tenant_invitation ADD COLUMN tenant_id TEXT',
+    'ALTER TABLE auth_tenant_invitation ADD COLUMN updated_at INTEGER',
+    'ALTER TABLE auth_session ADD COLUMN active_organization_id TEXT',
+  ]) {
+    try {
+      await runSql(db, stmt);
+    } catch {
+      /* already exists */
+    }
+  }
+}
+
 const MINIMAL_AUTH_SQL = `
 CREATE TABLE IF NOT EXISTS auth_user (
   id TEXT PRIMARY KEY,
@@ -125,56 +251,7 @@ CREATE TABLE IF NOT EXISTS auth_verification (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
-CREATE TABLE IF NOT EXISTS auth_tenant (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  slug TEXT NOT NULL UNIQUE,
-  logo TEXT,
-  metadata TEXT,
-  status TEXT NOT NULL DEFAULT 'active',
-  domain TEXT,
-  notes TEXT NOT NULL DEFAULT '',
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS auth_tenant_member (
-  id TEXT PRIMARY KEY,
-  tenant_id TEXT NOT NULL,
-  user_id TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'member',
-  email TEXT,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS auth_tenant_invitation (
-  id TEXT PRIMARY KEY,
-  tenant_id TEXT NOT NULL,
-  email TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'member',
-  status TEXT NOT NULL DEFAULT 'pending',
-  expires_at INTEGER NOT NULL,
-  inviter_id TEXT,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS auth_tenant_team (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  tenant_id TEXT NOT NULL,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
 `;
-
-/** Repair missing columns on already-created tenant tables (SQLite ADD COLUMN). */
-const REPAIR_COLUMNS = [
-  'ALTER TABLE auth_tenant_member ADD COLUMN tenant_id TEXT',
-  'ALTER TABLE auth_tenant_member ADD COLUMN updated_at INTEGER',
-  'ALTER TABLE auth_tenant_invitation ADD COLUMN tenant_id TEXT',
-  'ALTER TABLE auth_tenant_invitation ADD COLUMN updated_at INTEGER',
-  'ALTER TABLE auth_tenant ADD COLUMN updated_at INTEGER',
-  'ALTER TABLE auth_session ADD COLUMN active_organization_id TEXT',
-];
 
 export async function bootstrapDatabase(db: D1Like): Promise<{ ok: boolean; error?: string }> {
   try {
@@ -201,13 +278,8 @@ export async function bootstrapDatabase(db: D1Like): Promise<{ ok: boolean; erro
       }
     }
 
-    for (const stmt of REPAIR_COLUMNS) {
-      try {
-        await runSql(db, stmt);
-      } catch {
-        /* column may already exist */
-      }
-    }
+    // Critical for login: tenant tables must have tenant_id columns
+    await ensureTenantTables(db);
 
     for (const migration of SCHEMA_MIGRATIONS) {
       const done = await db
@@ -232,32 +304,8 @@ export async function bootstrapDatabase(db: D1Like): Promise<{ ok: boolean; erro
         .run();
     }
 
-    // Apply 0009 tenant repair even if SCHEMA_MIGRATIONS copy is stale
-    for (const stmt of splitStatements(`
-CREATE TABLE IF NOT EXISTS auth_tenant (
-  id TEXT PRIMARY KEY, name TEXT NOT NULL, slug TEXT NOT NULL UNIQUE,
-  logo TEXT, metadata TEXT, status TEXT NOT NULL DEFAULT 'active',
-  domain TEXT, notes TEXT NOT NULL DEFAULT '',
-  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS auth_tenant_member (
-  id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, user_id TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'member', email TEXT,
-  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS auth_tenant_invitation (
-  id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, email TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'member', status TEXT NOT NULL DEFAULT 'pending',
-  expires_at INTEGER NOT NULL, inviter_id TEXT,
-  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
-);
-`)) {
-      try {
-        await runSql(db, stmt);
-      } catch {
-        /* ignore */
-      }
-    }
+    // Re-run tenant ensure after migrations in case migrations left partial tables
+    await ensureTenantTables(db);
 
     const row = await db
       .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='auth_user'")
