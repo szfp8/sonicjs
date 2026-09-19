@@ -3,14 +3,16 @@
  * Cloudflare Deploy to Cloudflare / Workers Builds 一键部署入口。
  *
  * 原则：
- * - 不在 CI 里执行 d1 create / r2 create / kv create（由 Cloudflare 根据 wrangler.toml 自动 provision）
- * - 不依赖用户提供的 CLOUDFLARE_API_TOKEN
- * - 部署 Worker 后尽量应用 D1 migrations；若 CI 环境暂时无法解析 database_id，
- *   不让整个部署失败——运行时 bootstrapDatabase / ensureAuthSecrets 会兜底建表和密钥
+ * - 只向 Cloudflare 发布 Worker，绝不 git commit / git push 回 GitHub
+ * - 不把 database_id、KV id、账号密钥写进仓库文件
+ * - 不在 CI 里执行 d1 create / r2 create / kv create（由 CF 按 wrangler.toml 自动 provision）
+ * - 不依赖用户提供的 CLOUDFLARE_API_TOKEN 写入仓库
+ * - migrations 失败不阻断；运行时 bootstrap 兜底
  *
- * 这样可避免「资源未绑定 / 后台登录 500」的典型一键部署失败。
+ * 资源 ID 只存在于 Cloudflare 账号侧绑定，不会回调到 GitHub。
  */
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 
 const workerName = process.env.CF_WORKER_NAME || process.env.WORKER_NAME || 'sonicjs';
 
@@ -33,12 +35,15 @@ function run(args, { allowFail = false } = {}) {
 }
 
 try {
-  // 1) 发布 Worker。此时 Cloudflare 已根据 wrangler.toml 完成 D1/R2/KV provision 并绑定。
+  // 明确禁止：任何把部署结果写回 Git 的操作（本脚本不调用 git）
+  if (process.env.CF_WRITE_BACK_TO_GITHUB === '1') {
+    console.warn('[cf-deploy] CF_WRITE_BACK_TO_GITHUB is ignored — deploy never mutates the GitHub repo.');
+  }
+
+  // 1) 仅发布到 Cloudflare（资源 ID 留在 CF 侧，不改本地 wrangler.toml）
   run(['deploy', '--name', workerName]);
 
-  // 2) 尝试对已绑定的 D1 执行官方 migrations。
-  //    若 Workers Builds 环境暂时拿不到 database_id，允许失败：
-  //    运行时 entrypoint 会调用 bootstrapDatabase 创建 auth_* 等必要表。
+  // 2) 尽量应用 migrations；失败由运行时 bootstrap 兜底
   const migrated = run(['d1', 'migrations', 'apply', 'DB', '--remote', '--yes'], {
     allowFail: true,
   });
@@ -51,7 +56,14 @@ try {
     );
   }
 
-  console.log('[cf-deploy] One-click production deployment completed.');
+  // 防御：若本地意外生成了带 ID 的文件，提醒不要提交（本脚本不删除用户工作区，仅告警）
+  for (const f of ['wrangler.generated.toml', 'cf-deploy-state.json', 'deploy-meta.json']) {
+    if (existsSync(f)) {
+      console.warn(`[cf-deploy] Local file ${f} detected — do NOT commit it to GitHub (already in .gitignore).`);
+    }
+  }
+
+  console.log('[cf-deploy] Deploy finished. No files were pushed back to GitHub.');
   console.log('[cf-deploy] Next: open /status then /auth/register then /admin');
 } catch (error) {
   console.error('[cf-deploy] DEPLOY FAILED:', error?.message || error);
