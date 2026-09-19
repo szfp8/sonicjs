@@ -1,6 +1,5 @@
 /**
- * Beginner-friendly Chinese admin shell for the tax SEO site.
- * Presentation layer only; settings are persisted by the existing settings service.
+ * Beginner-friendly Chinese admin shell aligned with 财税SEO mockup.
  */
 
 const MARKER = 'data-tax-seo-beginner-ui';
@@ -12,19 +11,19 @@ const script = `
   window.__taxSeoBeginnerAdmin = true;
 
   var menu = [
-    { text: '网站首页', href: '/', icon: '⌂' },
-    { text: '首页设置', href: '/admin/settings/general#home', icon: '🏠' },
+    { text: '数据概览', href: '/admin', icon: '📊' },
     { text: '内容管理', href: '/admin/content', icon: '📝' },
-    { text: '网站资讯', href: '/admin/content?model=blog_post', icon: '📄' },
-    { text: '政策解读 / SEO资讯', href: '/admin/content?model=seo_article', icon: '📰' },
+    { text: '文章管理', href: '/admin/content?model=seo_article', icon: '📰' },
+    { text: '城市管理', href: '/admin/content?model=seo_city_page', icon: '📍' },
+    { text: '服务管理', href: '/admin/content?model=blog_post', icon: '📋' },
     { text: '微信文章', href: '/admin/content?model=wechat_article', icon: '💬' },
-    { text: 'SEO城市页面', href: '/admin/content?model=seo_city_page', icon: '📍' },
     { text: 'SEO设置', href: '/admin/settings/general#seo', icon: '🔎' },
+    { text: '新闻采集', href: '/admin/content?model=seo_article', icon: '📡' },
+    { text: '客户管理', href: '/admin/users', icon: '👤' },
+    { text: '数据统计', href: '/admin', icon: '📈' },
+    { text: '系统设置', href: '/admin/settings/general', icon: '⚙' },
     { text: '获客设置', href: '/admin/settings/general#lead', icon: '☎' },
-    { text: '搜索引擎收录', href: '/sitemap.xml', icon: '🚀' },
-    { text: '网站用户', href: '/admin/users', icon: '👤' },
-    { text: '网站设置', href: '/admin/settings/general', icon: '⚙' },
-    { text: '系统状态', href: '/admin/settings/database-tools', icon: '🛠' }
+    { text: '首页设置', href: '/admin/settings/general#home', icon: '🏠' }
   ];
 
   function cleanText(value) { return (value || '').replace(/\\s+/g, ' ').trim(); }
@@ -47,23 +46,28 @@ const script = `
     var style = document.createElement('style');
     style.id = 'tax-seo-beginner-style';
     style.textContent =
+      'nav[class*="bg-"]{background:#0f172a!important}' +
       '[data-tax-seo-shell]{margin:0 0 18px}' +
-      '.tax-seo-brand{display:flex;align-items:center;gap:12px;padding:16px;border-radius:14px;background:linear-gradient(135deg,#0b3b82,#155eef);color:#fff;box-shadow:0 8px 24px rgba(15,45,90,.12)}' +
-      '.tax-seo-brand-icon{width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:rgba(255,255,255,.16);font-size:21px}' +
+      '.tax-seo-brand{display:flex;align-items:center;gap:12px;padding:16px;border-radius:14px;background:linear-gradient(135deg,#1e3a8a,#2563eb);color:#fff;box-shadow:0 8px 24px rgba(15,45,90,.12)}' +
+      '.tax-seo-brand-icon{width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:rgba(255,255,255,.16);font-size:18px;font-weight:800}' +
       '.tax-seo-brand-title{font-size:17px;font-weight:700;line-height:1.2}.tax-seo-brand-sub{margin-top:3px;font-size:12px;opacity:.82}' +
-      '.tax-seo-quick{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px}' +
+      '.tax-seo-quick{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:12px}' +
       '.tax-seo-quick a{display:block;padding:14px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;color:#172033;text-decoration:none;box-shadow:0 2px 10px rgba(15,23,42,.04)}' +
-      '.tax-seo-quick a:hover{border-color:#b7c9ee;transform:translateY(-1px)}.tax-seo-quick strong{display:block;font-size:14px}.tax-seo-quick span{display:block;margin-top:4px;color:#667085;font-size:12px}' +
-      '.tax-seo-side-title{padding:10px 10px 6px;font-size:11px;font-weight:700;color:#98a2b3;letter-spacing:.06em}' +
+      '.tax-seo-quick a:hover{border-color:#93c5fd;transform:translateY(-1px)}.tax-seo-quick strong{display:block;font-size:14px}.tax-seo-quick span{display:block;margin-top:4px;color:#667085;font-size:12px}' +
+      '.tax-seo-side-title{padding:12px 12px 6px;font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:.08em;text-transform:uppercase}' +
+      '.tax-seo-side-link{display:flex!important;align-items:center;gap:10px;padding:10px 12px!important;margin:2px 6px;border-radius:10px;text-decoration:none;color:#e2e8f0!important;font-size:13px;font-weight:600}' +
+      '.tax-seo-side-link:hover{background:rgba(255,255,255,.08)}' +
       '.tax-seo-settings-guide{margin:0 0 18px;padding:17px 18px;border:1px solid #dbe5f4;border-radius:14px;background:linear-gradient(180deg,#f8fbff,#fff)}' +
       '.tax-seo-settings-guide h4{margin:0;font-size:16px;color:#12356b}.tax-seo-settings-guide p{margin:6px 0 0;font-size:12px;line-height:1.7;color:#667085}' +
       '.tax-seo-setting-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}' +
-      '.tax-seo-setting-card{padding:14px;border:1px solid #e4e7ec;border-radius:12px;background:#fff}.tax-seo-setting-card b{display:block;font-size:14px;color:#172033}.tax-seo-setting-card span{display:block;margin-top:5px;font-size:12px;line-height:1.6;color:#667085}.tax-seo-setting-card a{display:inline-block;margin-top:9px;color:#155eef;text-decoration:none;font-size:12px;font-weight:700}' +
+      '.tax-seo-setting-card{padding:14px;border:1px solid #e4e7ec;border-radius:12px;background:#fff}.tax-seo-setting-card b{display:block;font-size:14px;color:#172033}.tax-seo-setting-card span{display:block;margin-top:5px;font-size:12px;line-height:1.6;color:#667085}.tax-seo-setting-card a{display:inline-block;margin-top:9px;color:#2563eb;text-decoration:none;font-size:12px;font-weight:700}' +
       '.tax-seo-status{margin-top:14px;padding:12px 14px;border-radius:10px;background:#f0fdf4;color:#166534;font-size:12px}' +
       '.tax-seo-panel{margin:0 0 18px;padding:20px;border:1px solid #dbe5f4;border-radius:14px;background:#fff;box-shadow:0 2px 10px rgba(15,23,42,.04)}' +
       '.tax-seo-panel h3{margin:0;color:#12356b;font-size:18px}.tax-seo-panel .hint{margin:6px 0 16px;color:#667085;font-size:12px;line-height:1.7}' +
-      '.tax-seo-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.tax-seo-field{display:flex;flex-direction:column;gap:6px}.tax-seo-field.full{grid-column:1/-1}.tax-seo-field label{font-size:13px;font-weight:600;color:#344054}.tax-seo-field input,.tax-seo-field textarea,.tax-seo-field select{width:100%;box-sizing:border-box;border:1px solid #d0d5dd;border-radius:9px;padding:10px 11px;font:inherit;background:#fff}.tax-seo-field textarea{min-height:90px;resize:vertical}.tax-seo-save{margin-top:16px;border:0;border-radius:9px;padding:10px 18px;background:#155eef;color:#fff;font-weight:700;cursor:pointer}.tax-seo-msg{display:inline-block;margin-left:10px;font-size:12px;color:#166534}' +
-      '@media(max-width:700px){.tax-seo-quick,.tax-seo-setting-grid,.tax-seo-form-grid{grid-template-columns:1fr}.tax-seo-field.full{grid-column:auto}}';
+      '.tax-seo-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.tax-seo-field{display:flex;flex-direction:column;gap:6px}.tax-seo-field.full{grid-column:1/-1}.tax-seo-field label{font-size:13px;font-weight:600;color:#344054}.tax-seo-field input,.tax-seo-field textarea,.tax-seo-field select{width:100%;box-sizing:border-box;border:1px solid #d0d5dd;border-radius:9px;padding:10px 11px;font:inherit;background:#fff}.tax-seo-field textarea{min-height:90px;resize:vertical}.tax-seo-save{margin-top:16px;border:0;border-radius:9px;padding:10px 18px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer}.tax-seo-msg{display:inline-block;margin-left:10px;font-size:12px;color:#166534}' +
+      '.tax-seo-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}' +
+      '.tax-seo-stat{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px}.tax-seo-stat b{display:block;font-size:22px;color:#0f172a}.tax-seo-stat span{font-size:12px;color:#64748b}' +
+      '@media(max-width:700px){.tax-seo-quick,.tax-seo-setting-grid,.tax-seo-form-grid,.tax-seo-stats{grid-template-columns:1fr}}';
     document.head.appendChild(style);
   }
 
@@ -74,8 +78,8 @@ const script = `
     var body = nav.querySelector('.flex.flex-1.flex-col.overflow-y-auto') || nav;
     var box = document.createElement('div');
     box.setAttribute('data-tax-seo-quick-menu','1');
-    box.innerHTML = '<div class="tax-seo-side-title">财税SEO快捷入口</div>' + menu.slice(1).map(function(item){
-      return '<a href="'+item.href+'" style="display:flex;align-items:center;gap:9px;padding:9px 10px;margin:2px 0;border-radius:9px;text-decoration:none;color:inherit;font-size:13px"><span style="width:22px;text-align:center">'+item.icon+'</span><span>'+item.text+'</span></a>';
+    box.innerHTML = '<div class="tax-seo-side-title">财税SEO</div>' + menu.map(function(item){
+      return '<a class="tax-seo-side-link" href="'+item.href+'"><span style="width:22px;text-align:center">'+item.icon+'</span><span>'+item.text+'</span></a>';
     }).join('');
     body.insertBefore(box, body.firstChild);
   }
@@ -89,32 +93,18 @@ const script = `
     guide.setAttribute('data-tax-seo-settings-guide','1');
     guide.className = 'tax-seo-settings-guide';
     guide.innerHTML =
-      '<h4>⚙ 财税SEO网站设置中心</h4>' +
-      '<p>小白模式：先改「首页设置」，再填 SEO / 获客。城市正文请到「SEO城市页面」发布。</p>' +
+      '<h4>⚙ 系统设置（效果图：网站基本信息）</h4>' +
+      '<p>先改首页与获客电话，再配置 SEO。城市正文请到「城市管理」发布。</p>' +
       '<div class="tax-seo-setting-grid">' +
-        '<div class="tax-seo-setting-card"><b>① 首页设置</b><span>站点名称、首页标题、介绍、导航文案、模块开关。</span><a href="/admin/settings/general#home">进入首页设置 →</a></div>' +
-        '<div class="tax-seo-setting-card"><b>② SEO设置</b><span>SEO标题、关键词、描述、规范网址和Robots。</span><a href="/admin/settings/general#seo">进入SEO设置 →</a></div>' +
-        '<div class="tax-seo-setting-card"><b>③ 获客设置</b><span>联系电话、微信、线索入口和合规提示。</span><a href="/admin/settings/general#lead">进入获客设置 →</a></div>' +
-        '<div class="tax-seo-setting-card"><b>④ 城市页正文</b><span>后台发布「SEO城市页面」，前台 /city/城市名 优先显示。</span><a href="/admin/content?model=seo_city_page">管理城市页面 →</a></div>' +
-        '<div class="tax-seo-setting-card"><b>⑤ 微信文章</b><span>公众号推送文章列表与跳转原文。</span><a href="/admin/content?model=wechat_article">管理微信文章 →</a></div>' +
-        '<div class="tax-seo-setting-card"><b>⑥ 政策解读</b><span>来源 + 原创解读 + 企业实际价值。</span><a href="/admin/content?model=seo_article">管理政策解读 →</a></div>' +
+        '<div class="tax-seo-setting-card"><b>① 首页设置</b><span>站点名称、大标题、介绍、导航。</span><a href="/admin/settings/general#home">进入 →</a></div>' +
+        '<div class="tax-seo-setting-card"><b>② SEO设置</b><span>标题、关键词、描述、Robots。</span><a href="/admin/settings/general#seo">进入 →</a></div>' +
+        '<div class="tax-seo-setting-card"><b>③ 获客设置</b><span>电话、微信、线索提示。</span><a href="/admin/settings/general#lead">进入 →</a></div>' +
+        '<div class="tax-seo-setting-card"><b>④ 文章 / 城市</b><span>政策解读与城市落地页。</span><a href="/admin/content?model=seo_article">管理内容 →</a></div>' +
       '</div>' +
-      '<div class="tax-seo-status">✓ 首页/SEO/获客写入现有设置文档；城市与文章走内容集合，发布后前台可见。</div>';
+      '<div class="tax-seo-status">✓ 保存后刷新前台即可看到；一键部署无需改代码。</div>';
     content.insertBefore(guide, content.firstChild);
-
-    var labels = document.querySelectorAll('#settings-content label');
-    for (var i=0;i<labels.length;i++) {
-      var t=cleanText(labels[i].textContent);
-      if(t==='Site Name') labels[i].textContent='网站名称';
-      else if(t==='Admin Email') labels[i].textContent='管理员邮箱';
-      else if(t==='Timezone') labels[i].textContent='网站时区';
-      else if(t==='Site Description') labels[i].textContent='网站描述';
-      else if(t==='Language') labels[i].textContent='后台语言';
-      else if(t==='Enable maintenance mode') labels[i].textContent='启用网站维护模式';
-    }
     setText('General Settings','网站基础设置');
-    setText('Configure basic application settings and preferences.','填写网站名称、描述和基础运行信息');
-    setText('Save Changes','保存网站设置');
+    setText('Save Changes','保存设置');
   }
 
   function apiPanel(title, hint, endpoint, fields) {
@@ -124,7 +114,7 @@ const script = `
     panel.className='tax-seo-panel'; panel.setAttribute('data-tax-seo-panel',endpoint);
     panel.innerHTML='<h3>'+title+'</h3><div class="hint">'+hint+'</div><form class="tax-seo-form-grid">'+fields.map(function(f){
       var control=f.type==='textarea' ? '<textarea name="'+f.name+'" placeholder="'+esc(f.placeholder||'')+'"></textarea>' : f.type==='checkbox' ? '<input type="checkbox" name="'+f.name+'" style="width:auto;align-self:flex-start">' : '<input name="'+f.name+'" type="'+(f.type||'text')+'" placeholder="'+esc(f.placeholder||'')+'">';
-      return '<div class="tax-seo-field '+(f.full?'full':'')+'"><label>'+f.label+'</label>'+control+(f.help?'<small style="color:#667085">'+f.help+'</small>':'')+'</div>';
+      return '<div class="tax-seo-field '+(f.full?'full':'')+'"><label>'+f.label+'</label>'+control+'</div>';
     }).join('')+'<div class="full"><button class="tax-seo-save" type="submit">保存设置</button><span class="tax-seo-msg"></span></div></form>';
     content.insertBefore(panel,content.firstChild);
     var form=panel.querySelector('form');
@@ -136,37 +126,37 @@ const script = `
       ev.preventDefault();
       var msg=panel.querySelector('.tax-seo-msg'); msg.textContent='保存中…';
       var data={}; Array.prototype.forEach.call(form.elements,function(el){if(!el.name)return; data[el.name]=el.type==='checkbox'?el.checked:el.value;});
-      fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(r){return r.json().then(function(x){return {ok:r.ok,data:x};});}).then(function(x){msg.textContent=x.ok?'✓ 已保存，请打开前台首页查看':('保存失败：'+(x.data.error||'请重试'));}).catch(function(){msg.textContent='保存失败，请重试';});
+      fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(r){return r.json().then(function(x){return {ok:r.ok,data:x};});}).then(function(x){msg.textContent=x.ok?'✓ 已保存':'保存失败';}).catch(function(){msg.textContent='保存失败';});
     });
   }
 
   function buildSeoAndLeadPanels() {
     if (!location.pathname.startsWith('/admin/settings/')) return;
-    apiPanel('🏠 首页设置','改前台首页的站点名、大标题、介绍、合规提示和导航文字。保存后刷新前台 / 即可看到。','/admin/settings/api/home',[
-      {name:'siteName',label:'站点名称（页头）',placeholder:'全国财税发票服务'},
-      {name:'homeTitle',label:'首页大标题',placeholder:'全国发票与财税服务',full:true},
-      {name:'homeIntro',label:'首页介绍',type:'textarea',full:true,placeholder:'围绕企业日常经营中的发票、税务申报……'},
-      {name:'homeNotice',label:'合规提示',type:'textarea',full:true,placeholder:'仅接受真实交易和合法业务场景……'},
+    apiPanel('🏠 首页设置','对应效果图前台首页标题与导航。','/admin/settings/api/home',[
+      {name:'siteName',label:'站点名称',placeholder:'财税服务'},
+      {name:'homeTitle',label:'首页大标题',placeholder:'专业财税服务 助力企业发展',full:true},
+      {name:'homeIntro',label:'首页介绍',type:'textarea',full:true},
+      {name:'homeNotice',label:'合规提示',type:'textarea',full:true},
       {name:'navHome',label:'导航·首页',placeholder:'首页'},
-      {name:'navNews',label:'导航·政策解读',placeholder:'政策解读'},
-      {name:'navWechat',label:'导航·微信文章',placeholder:'微信文章'},
-      {name:'navContact',label:'导航·提交咨询',placeholder:'提交咨询'},
+      {name:'navNews',label:'导航·资讯',placeholder:'财税资讯'},
+      {name:'navWechat',label:'导航·微信',placeholder:'微信文章'},
+      {name:'navContact',label:'导航·咨询',placeholder:'提交咨询'},
       {name:'navSearch',label:'导航·搜索',placeholder:'搜索'},
-      {name:'showCities',label:'首页显示城市入口',type:'checkbox'},
-      {name:'showNewsBlock',label:'首页显示政策解读区块',type:'checkbox'},
-      {name:'showWechatBlock',label:'首页显示微信文章区块',type:'checkbox'}
+      {name:'showCities',label:'显示城市入口',type:'checkbox'},
+      {name:'showNewsBlock',label:'显示资讯区块',type:'checkbox'},
+      {name:'showWechatBlock',label:'显示微信区块',type:'checkbox'}
     ]);
-    apiPanel('🔎 SEO设置','设置首页和城市页面使用的基础SEO信息。保存后写入现有设置文档，不增加数据库表。','/admin/settings/api/seo',[
-      {name:'seoTitle',label:'SEO标题',placeholder:'全国财税发票服务｜财税与发票咨询',full:true},
-      {name:'seoKeywords',label:'SEO关键词',placeholder:'发票,财税,税务咨询,增值税发票'},
-      {name:'canonicalUrl',label:'规范网址',placeholder:'https://szfp8.com'},
-      {name:'seoDescription',label:'SEO描述',type:'textarea',full:true},
-      {name:'robots',label:'Robots规则',placeholder:'index,follow'},
-      {name:'indexNowEnabled',label:'启用IndexNow',type:'checkbox',help:'只控制站点设置，不会自动向搜索引擎制造大量请求。'}
+    apiPanel('🔎 SEO设置','网站基本信息 / SEO。','/admin/settings/api/seo',[
+      {name:'seoTitle',label:'网站标题',placeholder:'专业财税服务',full:true},
+      {name:'seoKeywords',label:'关键词',placeholder:'代理记账,代开发票'},
+      {name:'canonicalUrl',label:'网站地址',placeholder:'https://example.com'},
+      {name:'seoDescription',label:'网站描述',type:'textarea',full:true},
+      {name:'robots',label:'Robots',placeholder:'index,follow'},
+      {name:'indexNowEnabled',label:'启用IndexNow',type:'checkbox'}
     ]);
-    apiPanel('☎ 获客设置','填写真实联系方式，并保留合规提示。不要用于虚假交易、虚开发票或其他违法用途。','/admin/settings/api/lead',[
-      {name:'contactPhone',label:'联系电话',placeholder:'请输入真实客服电话'},
-      {name:'wechat',label:'微信号',placeholder:'请输入实际业务微信'},
+    apiPanel('☎ 获客设置','联系电话与微信（效果图顶部 400 电话）。','/admin/settings/api/lead',[
+      {name:'contactPhone',label:'联系电话',placeholder:'400-123-4567'},
+      {name:'wechat',label:'微信号',placeholder:'tax_wechat'},
       {name:'leadEnabled',label:'启用线索入口',type:'checkbox'},
       {name:'leadMessage',label:'线索提示语',type:'textarea',full:true}
     ]);
@@ -178,11 +168,16 @@ const script = `
     var content=main && (main.querySelector('.grow') || main.lastElementChild);
     if(!content || content.querySelector('[data-tax-seo-shell]')) return;
     var shell=document.createElement('div'); shell.setAttribute('data-tax-seo-shell','1');
-    shell.innerHTML='<div class="tax-seo-brand"><div class="tax-seo-brand-icon">税</div><div><div class="tax-seo-brand-title">财税SEO网站管理后台</div><div class="tax-seo-brand-sub">小白操作 · 首页设置 / 政策 / 微信 / 城市页 / 获客</div></div></div>';
+    shell.innerHTML='<div class="tax-seo-brand"><div class="tax-seo-brand-icon">税</div><div><div class="tax-seo-brand-title">财税SEO</div><div class="tax-seo-brand-sub">数据概览 · 文章管理 · 关键词 · 系统设置</div></div></div>' +
+      '<div class="tax-seo-stats">' +
+        '<div class="tax-seo-stat"><b>—</b><span>今日访问量</span></div>' +
+        '<div class="tax-seo-stat"><b>—</b><span>今日咨询</span></div>' +
+        '<div class="tax-seo-stat"><b>—</b><span>待审核文章</span></div>' +
+        '<div class="tax-seo-stat"><b>—</b><span>关键词排名</span></div>' +
+      '</div>';
     var quick=document.createElement('div'); quick.className='tax-seo-quick';
-    quick.innerHTML=menu.slice(1,10).map(function(item){
-      var desc=item.text==='首页设置'?'改首页标题与导航':item.text==='微信文章'?'公众号推送文章':item.text==='政策解读 / SEO资讯'?'来源+解读+价值':item.text==='SEO城市页面'?'城市页自定义正文':item.text==='内容管理'?'全部内容集合':'管理网站功能';
-      return '<a href="'+item.href+'"><strong>'+item.icon+' '+item.text+'</strong><span>'+desc+'</span></a>';
+    quick.innerHTML=menu.slice(0,8).map(function(item){
+      return '<a href="'+item.href+'"><strong>'+item.icon+' '+item.text+'</strong><span>快捷入口</span></a>';
     }).join('');
     shell.appendChild(quick); content.insertBefore(shell,content.firstChild);
   }
@@ -190,13 +185,12 @@ const script = `
   function buildPageShell() {
     if(!location.pathname.startsWith('/admin')) return;
     addStyles(); buildQuickMenu(); buildSettingsGuide(); buildSeoAndLeadPanels(); buildHomePanel();
-    document.title='财税SEO网站管理后台'; document.documentElement.lang='zh-CN';
+    document.title='财税SEO管理后台'; document.documentElement.lang='zh-CN';
     ['API Docs','Developer Docs','OpenAPI','Collections'].forEach(function(label){
       var el=findText(label); if(el){var row=el.closest('a,button,span'); if(row&&row.parentElement) row.parentElement.style.display='none';}
     });
-    setText('Content','内容管理'); setText('Users','网站用户'); setText('Plugins','系统工具'); setText('Settings','网站设置'); setText('Docs','帮助文档');
-    setText('Manage and organize your content items','管理网站内容：文章、政策解读、微信文章和SEO城市页面');
-    setText('Model','内容类型'); setText('All Models','全部内容'); setText('Bulk Actions','批量操作'); setText('Showing','当前显示'); setText('Per page','每页数量');
+    setText('Content','内容管理'); setText('Users','客户管理'); setText('Plugins','系统工具'); setText('Settings','系统设置'); setText('Docs','帮助');
+    setText('Dashboard','数据概览'); setText('Sign Out','退出登录');
   }
 
   function run(){ buildPageShell(); window.setTimeout(buildPageShell,300); }
