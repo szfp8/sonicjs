@@ -8,6 +8,7 @@
 - **不需要** Cloudflare API Token
 - **不需要** 在 GitHub Actions 里手动 `d1 create` / `r2 bucket create` / `kv namespace create`
 - JWT / Better Auth 密钥在首次请求时写入 D1 `app_secrets`，无需在 Dashboard 手工创建 Secret
+- `SITE_URL` / `BETTER_AUTH_URL` 在 `wrangler.toml` 中刻意留空；运行时从当前请求自动推导，保证自定义域名下「注册成功 → 登录成功」
 
 ## 一键部署
 
@@ -38,7 +39,7 @@ Cloudflare 会：
 
 ## 部署后：后台登录步骤
 
-1. 打开 `https://你的worker.workers.dev/status`
+1. 打开 `https://你的worker.workers.dev/status`（或自定义域名 `/status`）
 2. 确认返回类似：
 
 ```json
@@ -51,17 +52,36 @@ Cloudflare 会：
     "JWT_SECRET": true,
     "BETTER_AUTH_SECRET": true
   },
-  "migrated": true
+  "migrated": true,
+  "auth": {
+    "BETTER_AUTH_URL": "https://你的域名",
+    "SITE_URL": "https://你的域名",
+    "requestOrigin": "https://你的域名",
+    "originMatch": true
+  }
 }
 ```
 
-3. 打开 `/auth/register` 注册**第一个用户**（会被提升为管理员）
+3. 打开 `/auth/register` 注册**第一个用户**（会被自动提升为管理员）
 4. 打开 `/auth/login` 登录
 5. 进入 `/admin`
 
 若 `/status` 里 `DB: false`，说明绑定未成功，请在 Cloudflare Dashboard → Worker → Settings → Bindings 检查是否有 `DB` / `MEDIA_BUCKET` / `CACHE_KV`。
 
 若 `migrated: false`，刷新一次页面（运行时 bootstrap 会建表）；仍失败再看 Worker 日志。
+
+若 `auth.originMatch` 为 `false`，说明当前请求的 origin 与 Better Auth 使用的不一致，登录可能失败——请用与浏览器地址栏完全一致的域名访问。
+
+## 为什么「注册成功但登录失败」（已修复）
+
+`wrangler.toml` 中 `SITE_URL` / `BETTER_AUTH_URL` 故意留空，以便同一套代码部署到任意 Cloudflare 账号、任意自定义域名。
+
+在 `workers.dev` 下通常无问题；绑定自定义域名后，若 Better Auth 仍使用空 origin，会出现：
+
+- 注册写库成功
+- 随后登录时 Session Cookie / Origin 校验失败
+
+**当前 main 已在运行时按请求自动推导 origin**（见 `src/entrypoint.ts` 的 `prepareEnv`），注册与登录使用同一来源，无需把域名写死进仓库。
 
 ## 为什么不再用「脚本自己 create 资源」
 
@@ -80,7 +100,7 @@ wrangler deploy（发布 Worker）
         ↓
 尝试 wrangler d1 migrations apply（失败不阻断）
         ↓
-首次请求：bootstrapDatabase + ensureAuthSecrets
+首次请求：bootstrapDatabase + ensureAuthSecrets + 按请求推导 BETTER_AUTH_URL/SITE_URL
         ↓
 /status 全绿 → 注册 → 登录后台
 ```
@@ -99,7 +119,7 @@ wrangler deploy（发布 Worker）
 
 **不要把自定义域名写死在 GitHub。**
 
-先完成一键部署与后台登录，再在 Cloudflare Dashboard 给 Worker 添加 Custom Domain（例如 `szfp8.com`）。同一套代码可部署到任意 Cloudflare 账号。
+先完成一键部署与后台登录，再在 Cloudflare Dashboard 给 Worker 添加 Custom Domain（例如 `szfp8.com`）。同一套代码可部署到任意 Cloudflare 账号。绑定域名后，请用自定义域名访问 `/status`、注册与登录，确保 `auth.originMatch === true`。
 
 ## 日常更新
 
